@@ -14,6 +14,88 @@ export type Database = {
   }
   public: {
     Tables: {
+      baseline_tasks: {
+        Row: {
+          baseline_id: string
+          created_at: string
+          duration_days: number
+          end_date: string | null
+          id: string
+          name: string
+          predecessor_snapshot: Json
+          start_date: string | null
+          task_id: string
+          wbs_id: string | null
+        }
+        Insert: {
+          baseline_id: string
+          created_at?: string
+          duration_days?: number
+          end_date?: string | null
+          id?: string
+          name: string
+          predecessor_snapshot?: Json
+          start_date?: string | null
+          task_id: string
+          wbs_id?: string | null
+        }
+        Update: {
+          baseline_id?: string
+          created_at?: string
+          duration_days?: number
+          end_date?: string | null
+          id?: string
+          name?: string
+          predecessor_snapshot?: Json
+          start_date?: string | null
+          task_id?: string
+          wbs_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "baseline_tasks_baseline_id_fkey"
+            columns: ["baseline_id"]
+            isOneToOne: false
+            referencedRelation: "baselines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      baselines: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "baselines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dependencies: {
         Row: {
           created_at: string
@@ -75,6 +157,7 @@ export type Database = {
           name: string
           owner_id: string
           updated_at: string
+          variance_threshold_percent: number
         }
         Insert: {
           created_at?: string
@@ -84,6 +167,7 @@ export type Database = {
           name: string
           owner_id: string
           updated_at?: string
+          variance_threshold_percent?: number
         }
         Update: {
           created_at?: string
@@ -93,6 +177,7 @@ export type Database = {
           name?: string
           owner_id?: string
           updated_at?: string
+          variance_threshold_percent?: number
         }
         Relationships: []
       }

@@ -11,7 +11,32 @@ import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/format";
 import type { Dependency, Task, WbsNode } from "@/lib/types";
 import { createTask, deleteTask, deleteTasks, moveTasksToWbs, updateTask } from "@/lib/actions/schedule";
+import { varianceStatus } from "@/lib/variance/engine";
+import { formatVarianceDays, varianceColorClass } from "@/lib/variance/format";
+import type { TaskVariance, VarianceResult } from "@/lib/variance/types";
 import { PredecessorEditor } from "./predecessor-editor";
+
+// Fixed pixel widths for every column. table-layout:fixed proportionally
+// rescales <col> widths to fit whatever width the <table> itself resolves
+// to, so the table's own min-width has to be computed as the exact sum of
+// whichever columns are actually rendered — a static guess silently breaks
+// (and squeezes every column) the moment a column is added or removed.
+const COL = {
+  checkbox: 32,
+  name: 220,
+  section: 160,
+  duration: 80,
+  start: 90,
+  finish: 90,
+  percent: 70,
+  predecessors: 170,
+  float: 64,
+  baselineStart: 90,
+  baselineFinish: 90,
+  startVariance: 100,
+  finishVariance: 100,
+  actions: 40,
+};
 
 export function TaskTable({
   projectId,
@@ -21,6 +46,8 @@ export function TaskTable({
   allTasks,
   dependencies,
   wbsNodes,
+  variance,
+  thresholdPercent,
 }: {
   projectId: string;
   scopeName: string;
@@ -29,6 +56,8 @@ export function TaskTable({
   allTasks: Task[];
   dependencies: Dependency[];
   wbsNodes: WbsNode[];
+  variance: VarianceResult | null;
+  thresholdPercent: number;
 }) {
   const router = useRouter();
   const wbsNameById = new Map(wbsNodes.map((w) => [w.id, w.name]));
@@ -108,6 +137,20 @@ export function TaskTable({
   const allSelected = tasks.length > 0 && selected.size === tasks.length;
   const someSelected = selected.size > 0 && !allSelected;
 
+  const showSectionColumn = scopeWbsId === null;
+  const tableWidth =
+    COL.checkbox +
+    COL.name +
+    (showSectionColumn ? COL.section : 0) +
+    COL.duration +
+    COL.start +
+    COL.finish +
+    COL.percent +
+    COL.predecessors +
+    COL.float +
+    (variance ? COL.baselineStart + COL.baselineFinish + COL.startVariance + COL.finishVariance : 0) +
+    COL.actions;
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
@@ -146,18 +189,26 @@ export function TaskTable({
       )}
 
       <div className="flex-1 overflow-auto">
-        <table className="w-full min-w-[940px] table-fixed border-collapse text-sm">
+        <table className="table-fixed border-collapse text-sm" style={{ width: tableWidth, minWidth: tableWidth }}>
           <colgroup>
-            <col className="w-8" />
-            <col className={scopeWbsId === null ? "w-[25%]" : "w-[33%]"} />
-            {scopeWbsId === null && <col className="w-[14%]" />}
-            <col className="w-20" />
-            <col className="w-24" />
-            <col className="w-24" />
-            <col className="w-20" />
-            <col className="w-[18%]" />
-            <col className="w-16" />
-            <col className="w-10" />
+            <col style={{ width: COL.checkbox }} />
+            <col style={{ width: COL.name }} />
+            {scopeWbsId === null && <col style={{ width: COL.section }} />}
+            <col style={{ width: COL.duration }} />
+            <col style={{ width: COL.start }} />
+            <col style={{ width: COL.finish }} />
+            <col style={{ width: COL.percent }} />
+            <col style={{ width: COL.predecessors }} />
+            <col style={{ width: COL.float }} />
+            {variance && (
+              <>
+                <col style={{ width: COL.baselineStart }} />
+                <col style={{ width: COL.baselineFinish }} />
+                <col style={{ width: COL.startVariance }} />
+                <col style={{ width: COL.finishVariance }} />
+              </>
+            )}
+            <col style={{ width: COL.actions }} />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-background">
             <tr className="border-b border-border text-left text-xs text-muted-foreground">
@@ -176,6 +227,14 @@ export function TaskTable({
               <th className="px-3 py-2 font-medium">% done</th>
               <th className="px-3 py-2 font-medium">Predecessors</th>
               <th className="px-3 py-2 font-medium">Float</th>
+              {variance && (
+                <>
+                  <th className="px-3 py-2 font-medium">Baseline start</th>
+                  <th className="px-3 py-2 font-medium">Baseline finish</th>
+                  <th className="px-3 py-2 font-medium">Start variance</th>
+                  <th className="px-3 py-2 font-medium">Finish variance</th>
+                </>
+              )}
               <th className="px-3 py-2" />
             </tr>
           </thead>
@@ -191,12 +250,17 @@ export function TaskTable({
                 showSection={scopeWbsId === null}
                 selected={selected.has(task.id)}
                 onToggleSelected={(checked) => toggleOne(task.id, checked)}
+                variance={variance?.byTaskId.get(task.id) ?? null}
+                thresholdPercent={thresholdPercent}
                 refresh={refresh}
               />
             ))}
             {tasks.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-3 py-10 text-center text-sm text-muted-foreground">
+                <td
+                  colSpan={9 + (showSectionColumn ? 1 : 0) + (variance ? 4 : 0)}
+                  className="px-3 py-10 text-center text-sm text-muted-foreground"
+                >
                   No tasks in this section yet. Add one, or use the AI Assistant to draft a schedule.
                 </td>
               </tr>
@@ -217,6 +281,8 @@ function TaskRow({
   showSection,
   selected,
   onToggleSelected,
+  variance,
+  thresholdPercent,
   refresh,
 }: {
   task: Task;
@@ -227,6 +293,8 @@ function TaskRow({
   showSection: boolean;
   selected: boolean;
   onToggleSelected: (checked: boolean) => void;
+  variance: TaskVariance | null;
+  thresholdPercent: number;
   refresh: () => void;
 }) {
   const [name, setName] = useState(task.name);
@@ -352,6 +420,36 @@ function TaskRow({
           "—"
         )}
       </td>
+      {variance && (
+        <>
+          <td className="px-3 py-1.5 font-mono text-muted-foreground">
+            {variance.isNewScope ? (
+              <span title="Added after the baseline was taken">New</span>
+            ) : (
+              fmtDate(variance.baselineStartDate)
+            )}
+          </td>
+          <td className="px-3 py-1.5 font-mono text-muted-foreground">
+            {variance.isNewScope ? "—" : fmtDate(variance.baselineEndDate)}
+          </td>
+          <td
+            className={cn(
+              "px-3 py-1.5 font-mono",
+              varianceColorClass(varianceStatus(variance.startVarianceDays, task.duration_days, thresholdPercent)),
+            )}
+          >
+            {formatVarianceDays(variance.startVarianceDays)}
+          </td>
+          <td
+            className={cn(
+              "px-3 py-1.5 font-mono",
+              varianceColorClass(varianceStatus(variance.finishVarianceDays, task.duration_days, thresholdPercent)),
+            )}
+          >
+            {formatVarianceDays(variance.finishVarianceDays)}
+          </td>
+        </>
+      )}
       <td className="px-1 py-1.5">
         <div className="flex justify-end opacity-0 group-hover:opacity-100">
           <Button size="icon-sm" variant="ghost" className="size-6 text-status-off-track" onClick={handleDelete}>

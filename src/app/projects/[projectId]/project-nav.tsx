@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { slug: "schedule", label: "Schedule" },
   { slug: "gantt", label: "Gantt" },
+  { slug: "baselines", label: "Baselines" },
   { slug: "resources", label: "Resources" },
   { slug: "import", label: "Import" },
   { slug: "ai", label: "AI Assistant" },

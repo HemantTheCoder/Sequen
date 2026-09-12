@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { buildWbsTree, type Dependency, type Project, type Task, type WbsNode } from "@/lib/types";
 import { fmtDate } from "@/lib/format";
+import type { ProjectVarianceData } from "@/lib/actions/variance";
+import { BaselinePicker } from "../baseline-picker";
 import { WbsSidebar } from "./wbs-sidebar";
 import { TaskTable } from "./task-table";
 
@@ -11,11 +13,13 @@ export function ScheduleWorkspace({
   wbsNodes,
   tasks,
   dependencies,
+  varianceData,
 }: {
   project: Project;
   wbsNodes: WbsNode[];
   tasks: Task[];
   dependencies: Dependency[];
+  varianceData: ProjectVarianceData;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -39,6 +43,11 @@ export function ScheduleWorkspace({
         <p className="text-sm text-muted-foreground">
           Data date <span className="font-mono text-foreground">{fmtDate(project.data_date)}</span>
         </p>
+        <BaselinePicker
+          projectId={project.id}
+          baselines={varianceData.baselines}
+          selectedBaselineId={varianceData.selectedBaselineId}
+        />
       </div>
       <div className="flex flex-1 overflow-hidden">
         <WbsSidebar
@@ -47,6 +56,8 @@ export function ScheduleWorkspace({
           unassignedCount={unassignedTasks.length}
           selectedId={selectedId}
           onSelect={setSelectedId}
+          wbsRollups={varianceData.variance ? varianceData.wbsRollups : null}
+          thresholdPercent={varianceData.thresholdPercent}
         />
         <TaskTable
           projectId={project.id}
@@ -56,6 +67,8 @@ export function ScheduleWorkspace({
           allTasks={tasks}
           dependencies={dependencies}
           wbsNodes={wbsNodes}
+          variance={varianceData.variance}
+          thresholdPercent={varianceData.thresholdPercent}
         />
       </div>
     </div>

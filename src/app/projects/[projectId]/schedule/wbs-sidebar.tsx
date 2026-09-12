@@ -8,6 +8,9 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { WbsTreeNode } from "@/lib/types";
 import { createWbsNode, deleteWbsNode, renameWbsNode } from "@/lib/actions/schedule";
+import { varianceStatus } from "@/lib/variance/engine";
+import { formatVarianceDays, varianceColorClass } from "@/lib/variance/format";
+import type { WbsVarianceRollup } from "@/lib/variance/rollup";
 
 export function WbsSidebar({
   projectId,
@@ -15,12 +18,16 @@ export function WbsSidebar({
   unassignedCount,
   selectedId,
   onSelect,
+  wbsRollups,
+  thresholdPercent,
 }: {
   projectId: string;
   tree: WbsTreeNode[];
   unassignedCount: number;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  wbsRollups: Map<string, WbsVarianceRollup> | null;
+  thresholdPercent: number;
 }) {
   const router = useRouter();
 
@@ -64,6 +71,8 @@ export function WbsSidebar({
             selectedId={selectedId}
             onSelect={onSelect}
             refresh={refresh}
+            wbsRollups={wbsRollups}
+            thresholdPercent={thresholdPercent}
           />
         ))}
         {tree.length === 0 && (
@@ -87,6 +96,8 @@ function WbsNodeRow({
   selectedId,
   onSelect,
   refresh,
+  wbsRollups,
+  thresholdPercent,
 }: {
   node: WbsTreeNode;
   depth: number;
@@ -94,6 +105,8 @@ function WbsNodeRow({
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   refresh: () => void;
+  wbsRollups: Map<string, WbsVarianceRollup> | null;
+  thresholdPercent: number;
 }) {
   const [open, setOpen] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -124,6 +137,10 @@ function WbsNodeRow({
   }
 
   const taskCount = countTasks(node);
+  const rollup = wbsRollups?.get(node.id) ?? null;
+  const rollupStatus = rollup
+    ? varianceStatus(rollup.finishVarianceDays, rollup.currentSpanDays ?? 0, thresholdPercent)
+    : null;
 
   return (
     <div>
@@ -161,6 +178,14 @@ function WbsNodeRow({
             {node.name}
           </button>
         )}
+        {rollup && !editing && (
+          <span
+            className={cn("mr-1.5 font-mono text-xs", varianceColorClass(rollupStatus))}
+            title="Finish variance vs. baseline for this section"
+          >
+            {formatVarianceDays(rollup.finishVarianceDays)}
+          </span>
+        )}
         {taskCount > 0 && !editing && (
           <span className="font-mono text-xs text-muted-foreground">{taskCount}</span>
         )}
@@ -183,6 +208,8 @@ function WbsNodeRow({
             selectedId={selectedId}
             onSelect={onSelect}
             refresh={refresh}
+            wbsRollups={wbsRollups}
+            thresholdPercent={thresholdPercent}
           />
         ))}
     </div>

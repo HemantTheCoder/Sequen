@@ -3,11 +3,15 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addDays, differenceInCalendarDays, format } from "date-fns";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { Dependency, GanttRow, Project, Task } from "@/lib/types";
 import { updateTask } from "@/lib/actions/schedule";
+import type { ProjectVarianceData } from "@/lib/actions/variance";
+import type { TaskVariance } from "@/lib/variance/types";
+import { BaselinePicker } from "../baseline-picker";
 
 type Zoom = "day" | "week" | "month";
 const PX_PER_DAY: Record<Zoom, number> = { day: 40, week: 14, month: 5 };
@@ -24,15 +28,19 @@ export function GanttChart({
   project,
   rows,
   dependencies,
+  varianceData,
 }: {
   project: Project;
   rows: GanttRow[];
   dependencies: Dependency[];
+  varianceData: ProjectVarianceData;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [zoom, setZoom] = useState<Zoom>("week");
+  const [showBaseline, setShowBaseline] = useState(true);
   const pxPerDay = PX_PER_DAY[zoom];
+  const hasBaseline = varianceData.variance !== null;
 
   const taskRows = rows.filter((r): r is Extract<GanttRow, { kind: "task" }> => r.kind === "task");
 
@@ -44,14 +52,19 @@ export function GanttChart({
       const s = parseDate(row.task.early_start);
       const f = parseDate(row.task.early_finish);
       const lf = parseDate(row.task.late_finish);
+      const variance = varianceData.variance?.byTaskId.get(row.task.id);
+      const bs = parseDate(variance?.baselineStartDate ?? null);
+      const bf = parseDate(variance?.baselineEndDate ?? null);
       if (s && s < min) min = s;
       if (f && f > max) max = f;
       if (lf && lf > max) max = lf;
+      if (bs && bs < min) min = bs;
+      if (bf && bf > max) max = bf;
     }
     min = addDays(min, -3);
     max = addDays(max, 5);
     return { rangeStart: min, totalDays: Math.max(1, differenceInCalendarDays(max, min)) };
-  }, [project.data_date, taskRows]);
+  }, [project.data_date, taskRows, varianceData.variance]);
 
   const rowIndex = useMemo(() => {
     const map = new Map<string, number>();
@@ -78,18 +91,31 @@ export function GanttChart({
         <p className="text-sm text-muted-foreground">
           Drag a bar to reschedule its start, or drag the right edge to change its duration.
         </p>
-        <div className="flex items-center gap-1">
-          {(["day", "week", "month"] as Zoom[]).map((z) => (
-            <Button
-              key={z}
-              size="sm"
-              variant={zoom === z ? "default" : "outline"}
-              onClick={() => setZoom(z)}
-              className="capitalize"
-            >
-              {z}
+        <div className="flex items-center gap-3">
+          <BaselinePicker
+            projectId={project.id}
+            baselines={varianceData.baselines}
+            selectedBaselineId={varianceData.selectedBaselineId}
+          />
+          {hasBaseline && (
+            <Button size="sm" variant="outline" onClick={() => setShowBaseline((v) => !v)}>
+              {showBaseline ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+              {showBaseline ? "Hide baseline" : "Show baseline"}
             </Button>
-          ))}
+          )}
+          <div className="flex items-center gap-1">
+            {(["day", "week", "month"] as Zoom[]).map((z) => (
+              <Button
+                key={z}
+                size="sm"
+                variant={zoom === z ? "default" : "outline"}
+                onClick={() => setZoom(z)}
+                className="capitalize"
+              >
+                {z}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -158,6 +184,7 @@ export function GanttChart({
                   rangeStart={rangeStart}
                   pxPerDay={pxPerDay}
                   refresh={refresh}
+                  variance={showBaseline ? (varianceData.variance?.byTaskId.get(row.task.id) ?? null) : null}
                 />
               );
             })}
@@ -218,6 +245,7 @@ function TaskBar({
   rangeStart,
   pxPerDay,
   refresh,
+  variance,
 }: {
   task: Task;
   rowTop: number;
@@ -225,6 +253,7 @@ function TaskBar({
   rangeStart: Date;
   pxPerDay: number;
   refresh: () => void;
+  variance: TaskVariance | null;
 }) {
   const [drag, setDrag] = useState<{
     mode: "move" | "resize";
@@ -302,6 +331,14 @@ function TaskBar({
 
   const transitionClass = isLive ? "" : SETTLE_TRANSITION;
 
+  const baselineStart = variance && !variance.isNewScope ? parseDate(variance.baselineStartDate) : null;
+  const baselineFinish = variance && !variance.isNewScope ? parseDate(variance.baselineEndDate) : null;
+  const showBaselineMark = baselineStart !== null && baselineFinish !== null;
+  const baselineLeft = baselineStart ? dayOffset(baselineStart) * pxPerDay : 0;
+  const baselineWidth = baselineStart && baselineFinish
+    ? Math.max(task.is_milestone ? 0 : 4, differenceInCalendarDays(baselineFinish, baselineStart) * pxPerDay)
+    : 0;
+
   return (
     <div className="absolute w-full" style={{ top: rowTop, height: ROW_HEIGHT }}>
       {task.is_milestone ? (
@@ -319,7 +356,15 @@ function TaskBar({
           </TooltipTrigger>
           <TooltipContent>{task.name} — {format(start, "MMM d")}</TooltipContent>
         </Tooltip>
-      ) : (
+      ) : null}
+      {task.is_milestone && showBaselineMark && (
+        <div
+          title={`Baseline: ${baselineStart ? format(baselineStart, "MMM d") : ""}`}
+          className="absolute top-1/2 size-3 -translate-y-1/2 rotate-45 border border-rule bg-transparent"
+          style={{ left: baselineLeft - 6 }}
+        />
+      )}
+      {!task.is_milestone && (
         <Tooltip>
           <TooltipTrigger asChild>
             <div className={cn("absolute top-1.5 h-[18px]", transitionClass)} style={{ left: barLeft, width: barWidth + ghostWidth }}>
@@ -367,9 +412,21 @@ function TaskBar({
               {lateFinish && ghostWidth > 0 && (
                 <p className="text-muted-foreground">Can slip to {format(lateFinish, "MMM d")} without delay</p>
               )}
+              {baselineStart && baselineFinish && (
+                <p className="text-muted-foreground">
+                  Baseline: {format(baselineStart, "MMM d")}–{format(baselineFinish, "MMM d")}
+                </p>
+              )}
             </div>
           </TooltipContent>
         </Tooltip>
+      )}
+      {!task.is_milestone && showBaselineMark && (
+        <div
+          title="Baseline position"
+          className="absolute top-0.5 h-1 rounded-[1px] border border-rule bg-transparent"
+          style={{ left: baselineLeft, width: baselineWidth }}
+        />
       )}
     </div>
   );
