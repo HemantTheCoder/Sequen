@@ -101,7 +101,7 @@ export function PredecessorEditor({
           <select
             value={pendingId}
             onChange={(e) => setPendingId(e.target.value)}
-            className="h-7 flex-1 rounded-md border border-input bg-transparent px-1.5 text-xs"
+            className="h-7 min-w-0 flex-1 rounded-md border border-input bg-transparent px-1.5 text-xs"
           >
             <option value="">Select task…</option>
             {candidates.map((t) => (

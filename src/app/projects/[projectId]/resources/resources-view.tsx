@@ -147,7 +147,7 @@ export function ResourcesView({
               <select
                 value={newAssignment.taskId}
                 onChange={(e) => setNewAssignment((s) => ({ ...s, taskId: e.target.value }))}
-                className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                className="h-9 min-w-0 rounded-md border border-input bg-transparent px-2 text-sm"
               >
                 <option value="">Task…</option>
                 {tasks.map((t) => (
@@ -157,7 +157,7 @@ export function ResourcesView({
               <select
                 value={newAssignment.resourceId}
                 onChange={(e) => setNewAssignment((s) => ({ ...s, resourceId: e.target.value }))}
-                className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                className="h-9 min-w-0 rounded-md border border-input bg-transparent px-2 text-sm"
               >
                 <option value="">Resource…</option>
                 {resources.map((r) => (

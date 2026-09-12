@@ -48,18 +48,29 @@ export function TaskTable({
       </div>
 
       <div className="flex-1 overflow-auto">
-        <table className="w-full min-w-[900px] border-collapse text-sm">
+        <table className="w-full min-w-[900px] table-fixed border-collapse text-sm">
+          <colgroup>
+            <col className={scopeWbsId === null ? "w-[26%]" : "w-[34%]"} />
+            {scopeWbsId === null && <col className="w-[14%]" />}
+            <col className="w-20" />
+            <col className="w-24" />
+            <col className="w-24" />
+            <col className="w-20" />
+            <col className="w-[18%]" />
+            <col className="w-16" />
+            <col className="w-10" />
+          </colgroup>
           <thead className="sticky top-0 z-10 bg-background">
             <tr className="border-b border-border text-left text-xs text-muted-foreground">
-              <th className="w-[28%] px-3 py-2 font-medium">Name</th>
-              {scopeWbsId === null && <th className="w-[14%] px-3 py-2 font-medium">Section</th>}
-              <th className="w-20 px-3 py-2 font-medium">Duration</th>
-              <th className="w-24 px-3 py-2 font-medium">Start</th>
-              <th className="w-24 px-3 py-2 font-medium">Finish</th>
-              <th className="w-20 px-3 py-2 font-medium">% done</th>
-              <th className="w-32 px-3 py-2 font-medium">Predecessors</th>
-              <th className="w-16 px-3 py-2 font-medium">Float</th>
-              <th className="w-10 px-3 py-2" />
+              <th className="px-3 py-2 font-medium">Name</th>
+              {scopeWbsId === null && <th className="px-3 py-2 font-medium">Section</th>}
+              <th className="px-3 py-2 font-medium">Duration</th>
+              <th className="px-3 py-2 font-medium">Start</th>
+              <th className="px-3 py-2 font-medium">Finish</th>
+              <th className="px-3 py-2 font-medium">% done</th>
+              <th className="px-3 py-2 font-medium">Predecessors</th>
+              <th className="px-3 py-2 font-medium">Float</th>
+              <th className="px-3 py-2" />
             </tr>
           </thead>
           <tbody>
@@ -160,7 +171,7 @@ function TaskRow({
       )}
     >
       <td className="px-3 py-1.5">
-        <div className="flex items-center gap-1.5">
+        <div className="flex min-w-0 items-center gap-1.5">
           {task.is_milestone && <Milestone className="size-3.5 shrink-0 text-status-at-risk" />}
           {task.is_critical && (
             <span title="On the critical path" className="shrink-0">
@@ -172,12 +183,15 @@ function TaskRow({
             onChange={(e) => setName(e.target.value)}
             onBlur={commitName}
             onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-            className="h-6 border-transparent bg-transparent py-0 hover:border-input focus-visible:border-ring"
+            title={name}
+            className="h-6 min-w-0 flex-1 truncate border-transparent bg-transparent py-0 hover:border-input focus-visible:border-ring"
           />
         </div>
       </td>
       {showSection && (
-        <td className="px-3 py-1.5 truncate text-muted-foreground">{sectionName}</td>
+        <td className="truncate px-3 py-1.5 text-muted-foreground" title={sectionName}>
+          {sectionName}
+        </td>
       )}
       <td className="px-3 py-1.5">
         <Input

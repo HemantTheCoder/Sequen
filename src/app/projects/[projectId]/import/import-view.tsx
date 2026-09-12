@@ -232,14 +232,14 @@ export function ImportView({ projectId }: { projectId: string }) {
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {MAPPING_FIELDS.map((field) => (
-                  <div key={field.key} className="space-y-1">
+                  <div key={field.key} className="min-w-0 space-y-1">
                     <label className="text-xs font-medium text-muted-foreground">{field.label}</label>
                     <select
                       value={mapping[field.key]}
                       onChange={(e) =>
                         setMapping((m) => ({ ...m, [field.key]: Number(e.target.value) }))
                       }
-                      className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm"
+                      className="h-8 w-full min-w-0 rounded-md border border-input bg-transparent px-2 text-sm"
                     >
                       <option value={-1}>None</option>
                       {headers.map((h, i) => (
