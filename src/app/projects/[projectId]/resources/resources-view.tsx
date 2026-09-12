@@ -14,7 +14,14 @@ import {
   createResource,
   deleteAssignment,
   deleteResource,
+  setResourceCalendar,
 } from "@/lib/actions/resources";
+
+interface CalendarOption {
+  id: string;
+  name: string;
+  is_default: boolean;
+}
 
 interface TaskLite {
   id: string;
@@ -36,11 +43,13 @@ export function ResourcesView({
   resources,
   tasks,
   assignments,
+  calendars,
 }: {
   project: Project;
   resources: Resource[];
   tasks: TaskLite[];
   assignments: Assignment[];
+  calendars: CalendarOption[];
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -113,9 +122,10 @@ export function ResourcesView({
             ) : (
               <table className="w-full table-fixed border-collapse text-sm">
                 <colgroup>
-                  <col className="w-[38%]" />
-                  <col className="w-[32%]" />
-                  <col className="w-[22%]" />
+                  <col className="w-[28%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[16%]" />
+                  <col className="w-[28%]" />
                   <col className="w-8" />
                 </colgroup>
                 <thead>
@@ -123,6 +133,7 @@ export function ResourcesView({
                     <th className="py-1.5 pr-2 font-medium">Name</th>
                     <th className="py-1.5 pr-2 font-medium">Role</th>
                     <th className="py-1.5 pr-2 font-medium">Rate</th>
+                    <th className="py-1.5 pr-2 font-medium">Calendar</th>
                     <th className="py-1.5" />
                   </tr>
                 </thead>
@@ -135,6 +146,21 @@ export function ResourcesView({
                       </td>
                       <td className="py-1.5 pr-2 font-mono text-muted-foreground">
                         {r.cost_per_hour != null ? `$${r.cost_per_hour}/hr` : "—"}
+                      </td>
+                      <td className="py-1.5 pr-2">
+                        <select
+                          value={r.calendar_id ?? ""}
+                          onChange={async (e) => {
+                            await setResourceCalendar(project.id, r.id, e.target.value || null);
+                            refresh();
+                          }}
+                          className="h-7 w-full min-w-0 rounded-md border border-input bg-transparent px-1.5 text-xs text-muted-foreground"
+                        >
+                          <option value="">Project default (Mon–Fri)</option>
+                          {calendars.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
                       </td>
                       <td className="py-1.5">
                         <Button

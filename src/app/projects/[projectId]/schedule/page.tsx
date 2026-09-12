@@ -14,12 +14,13 @@ export default async function SchedulePage({
   const { baseline: requestedBaselineId } = await searchParams;
   const supabase = await createClient();
 
-  const [{ data: project }, { data: wbsNodes }, { data: tasks }, { data: dependencies }, varianceData] =
+  const [{ data: project }, { data: wbsNodes }, { data: tasks }, { data: dependencies }, { data: calendars }, varianceData] =
     await Promise.all([
       supabase.from("projects").select("*").eq("id", projectId).single(),
       supabase.from("wbs_nodes").select("*").eq("project_id", projectId).order("sort_order"),
       supabase.from("tasks").select("*").eq("project_id", projectId).order("sort_order"),
       supabase.from("dependencies").select("*").eq("project_id", projectId),
+      supabase.from("calendars").select("id, name, is_default").eq("project_id", projectId).order("name"),
       loadProjectVariance(projectId, requestedBaselineId),
     ]);
 
@@ -31,6 +32,7 @@ export default async function SchedulePage({
       wbsNodes={wbsNodes ?? []}
       tasks={tasks ?? []}
       dependencies={dependencies ?? []}
+      calendars={calendars ?? []}
       varianceData={varianceData}
     />
   );

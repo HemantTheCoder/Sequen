@@ -31,12 +31,19 @@ const COL = {
   percent: 70,
   predecessors: 170,
   float: 64,
+  calendar: 150,
   baselineStart: 90,
   baselineFinish: 90,
   startVariance: 100,
   finishVariance: 100,
   actions: 40,
 };
+
+interface CalendarOption {
+  id: string;
+  name: string;
+  is_default: boolean;
+}
 
 export function TaskTable({
   projectId,
@@ -46,6 +53,7 @@ export function TaskTable({
   allTasks,
   dependencies,
   wbsNodes,
+  calendars,
   variance,
   thresholdPercent,
 }: {
@@ -56,6 +64,7 @@ export function TaskTable({
   allTasks: Task[];
   dependencies: Dependency[];
   wbsNodes: WbsNode[];
+  calendars: CalendarOption[];
   variance: VarianceResult | null;
   thresholdPercent: number;
 }) {
@@ -148,6 +157,7 @@ export function TaskTable({
     COL.percent +
     COL.predecessors +
     COL.float +
+    COL.calendar +
     (variance ? COL.baselineStart + COL.baselineFinish + COL.startVariance + COL.finishVariance : 0) +
     COL.actions;
 
@@ -200,6 +210,7 @@ export function TaskTable({
             <col style={{ width: COL.percent }} />
             <col style={{ width: COL.predecessors }} />
             <col style={{ width: COL.float }} />
+            <col style={{ width: COL.calendar }} />
             {variance && (
               <>
                 <col style={{ width: COL.baselineStart }} />
@@ -227,12 +238,17 @@ export function TaskTable({
               <th className="px-3 py-2 font-medium">% done</th>
               <th className="px-3 py-2 font-medium">Predecessors</th>
               <th className="px-3 py-2 font-medium">Float</th>
+              <th className="px-3 py-2 font-medium">Calendar</th>
               {variance && (
                 <>
                   <th className="px-3 py-2 font-medium">Baseline start</th>
                   <th className="px-3 py-2 font-medium">Baseline finish</th>
-                  <th className="px-3 py-2 font-medium">Start variance</th>
-                  <th className="px-3 py-2 font-medium">Finish variance</th>
+                  <th className="px-3 py-2 font-medium" title="A calendar change since the baseline was set can shift these numbers without a real scope change">
+                    Start variance
+                  </th>
+                  <th className="px-3 py-2 font-medium" title="A calendar change since the baseline was set can shift these numbers without a real scope change">
+                    Finish variance
+                  </th>
                 </>
               )}
               <th className="px-3 py-2" />
@@ -250,6 +266,7 @@ export function TaskTable({
                 showSection={scopeWbsId === null}
                 selected={selected.has(task.id)}
                 onToggleSelected={(checked) => toggleOne(task.id, checked)}
+                calendars={calendars}
                 variance={variance?.byTaskId.get(task.id) ?? null}
                 thresholdPercent={thresholdPercent}
                 refresh={refresh}
@@ -258,7 +275,7 @@ export function TaskTable({
             {tasks.length === 0 && (
               <tr>
                 <td
-                  colSpan={9 + (showSectionColumn ? 1 : 0) + (variance ? 4 : 0)}
+                  colSpan={10 + (showSectionColumn ? 1 : 0) + (variance ? 4 : 0)}
                   className="px-3 py-10 text-center text-sm text-muted-foreground"
                 >
                   No tasks in this section yet. Add one, or use the AI Assistant to draft a schedule.
@@ -281,6 +298,7 @@ function TaskRow({
   showSection,
   selected,
   onToggleSelected,
+  calendars,
   variance,
   thresholdPercent,
   refresh,
@@ -293,6 +311,7 @@ function TaskRow({
   showSection: boolean;
   selected: boolean;
   onToggleSelected: (checked: boolean) => void;
+  calendars: CalendarOption[];
   variance: TaskVariance | null;
   thresholdPercent: number;
   refresh: () => void;
@@ -301,6 +320,12 @@ function TaskRow({
   const [duration, setDuration] = useState(String(task.duration_days));
   const [percent, setPercent] = useState(String(task.percent_complete));
   const preds = dependencies.filter((d) => d.successor_id === task.id);
+
+  async function handleCalendarChange(calendarId: string) {
+    await updateTask(projectId, task.id, { calendar_id: calendarId || null });
+    toast.success("Saved — schedule recalculated");
+    refresh();
+  }
 
   async function commitName() {
     if (name.trim() && name !== task.name) {
@@ -419,6 +444,18 @@ function TaskRow({
         ) : (
           "—"
         )}
+      </td>
+      <td className="px-3 py-1.5">
+        <select
+          value={task.calendar_id ?? ""}
+          onChange={(e) => handleCalendarChange(e.target.value)}
+          className="h-6 w-full min-w-0 rounded-md border border-transparent bg-transparent text-xs text-muted-foreground hover:border-input focus-visible:border-ring"
+        >
+          <option value="">Project default (Mon–Fri)</option>
+          {calendars.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
       </td>
       {variance && (
         <>

@@ -96,7 +96,9 @@ export function BaselinesView({
             <CardTitle className="text-base">Baselines</CardTitle>
             <CardDescription>
               A baseline freezes the current schedule so later progress can be measured against it.
-              The active baseline drives variance shown in the schedule and Gantt.
+              The active baseline drives variance shown in the schedule and Gantt. Note: changing a
+              task&apos;s or the project&apos;s calendar after a baseline is set can shift dates —
+              and show variance — even when nothing about the actual scope changed.
             </CardDescription>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>

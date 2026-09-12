@@ -10,15 +10,18 @@ export default async function AiAssistantPage({
   const { projectId } = await params;
   const supabase = await createClient();
 
-  const [{ data: project }, { data: tasks }, { data: dependencies }, { data: assignments }] =
+  const [{ data: project }, { data: tasks }, { data: dependencies }, { data: assignments }, { data: calendars }] =
     await Promise.all([
       supabase.from("projects").select("*").eq("id", projectId).single(),
       supabase.from("tasks").select("*").eq("project_id", projectId).order("sort_order"),
       supabase.from("dependencies").select("*").eq("project_id", projectId),
       supabase
         .from("task_resources")
-        .select("*, task:tasks!inner(id, name, early_start, early_finish, project_id), resource:resources(id, name)")
+        .select(
+          "*, task:tasks!inner(id, name, early_start, early_finish, project_id, calendar_id), resource:resources(id, name, calendar_id)",
+        )
         .eq("task.project_id", projectId),
+      supabase.from("calendars").select("id, working_days, is_default").eq("project_id", projectId),
     ]);
 
   if (!project) notFound();
@@ -29,6 +32,7 @@ export default async function AiAssistantPage({
       tasks={tasks ?? []}
       dependencies={dependencies ?? []}
       assignments={assignments ?? []}
+      calendars={calendars ?? []}
     />
   );
 }

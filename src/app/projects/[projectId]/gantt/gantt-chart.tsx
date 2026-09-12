@@ -11,6 +11,7 @@ import type { Dependency, GanttRow, Project, Task } from "@/lib/types";
 import { updateTask } from "@/lib/actions/schedule";
 import type { ProjectVarianceData } from "@/lib/actions/variance";
 import type { TaskVariance } from "@/lib/variance/types";
+import { isWorkingDay, type WorkingCalendar } from "@/lib/cpm/calendar";
 import { BaselinePicker } from "../baseline-picker";
 
 type Zoom = "day" | "week" | "month";
@@ -29,11 +30,13 @@ export function GanttChart({
   rows,
   dependencies,
   varianceData,
+  defaultCalendar,
 }: {
   project: Project;
   rows: GanttRow[];
   dependencies: Dependency[];
   varianceData: ProjectVarianceData;
+  defaultCalendar: { workingDays: number[]; exceptions: Map<string, boolean> };
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -84,6 +87,14 @@ export function GanttChart({
 
   const gridWidth = totalDays * pxPerDay;
   const ticks = useMemo(() => buildTicks(rangeStart, totalDays, zoom), [rangeStart, totalDays, zoom]);
+  const nonWorkingOffsets = useMemo(() => {
+    const calendar: WorkingCalendar = { id: "gantt-default", ...defaultCalendar };
+    const offsets: number[] = [];
+    for (let i = 0; i < totalDays; i++) {
+      if (!isWorkingDay(addDays(rangeStart, i), calendar)) offsets.push(i);
+    }
+    return offsets;
+  }, [rangeStart, totalDays, defaultCalendar]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -140,6 +151,13 @@ export function GanttChart({
         <div className="relative" style={{ width: gridWidth }}>
           {/* Header: graph-paper date scale */}
           <div className="sticky top-0 z-10 border-b border-border bg-background" style={{ height: HEADER_HEIGHT }}>
+            {nonWorkingOffsets.map((offset) => (
+              <div
+                key={offset}
+                className="absolute top-0 h-full bg-muted-foreground/10"
+                style={{ left: offset * pxPerDay, width: pxPerDay }}
+              />
+            ))}
             {ticks.map((tick) => (
               <div
                 key={tick.offset}
@@ -153,6 +171,13 @@ export function GanttChart({
 
           {/* Grid + rows */}
           <div className="relative" style={{ height: rows.length * ROW_HEIGHT }}>
+            {nonWorkingOffsets.map((offset) => (
+              <div
+                key={offset}
+                className="absolute top-0 bottom-0 bg-muted-foreground/10"
+                style={{ left: offset * pxPerDay, width: pxPerDay }}
+              />
+            ))}
             {ticks.map((tick) => (
               <div
                 key={tick.offset}

@@ -21,6 +21,13 @@ export async function createResource(
   revalidatePath(resourcesPath(projectId));
 }
 
+export async function setResourceCalendar(projectId: string, id: string, calendarId: string | null) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("resources").update({ calendar_id: calendarId }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath(resourcesPath(projectId));
+}
+
 export async function deleteResource(projectId: string, id: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("resources").delete().eq("id", id);

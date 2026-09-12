@@ -108,4 +108,53 @@ describe("runRuleBasedRiskChecks", () => {
     const flags = runRuleBasedRiskChecks([], assignments);
     expect(flags.some((f) => f.category === "over-allocation")).toBe(false);
   });
+
+  it("flags a resource whose calendar has fewer working days than its assigned task's calendar", () => {
+    const assignments: RiskAssignmentInput[] = [
+      {
+        resourceId: "r1",
+        resourceName: "Alice",
+        taskId: "a",
+        allocationPercent: 50,
+        earlyStart: "2026-01-05",
+        earlyFinish: "2026-01-09",
+        resourceWorkingDays: [1, 2, 3, 4, 5],
+        taskWorkingDays: [1, 2, 3, 4, 5, 6],
+      },
+    ];
+    const flags = runRuleBasedRiskChecks([], assignments);
+    expect(flags.some((f) => f.category === "calendar-conflict" && f.resourceId === "r1")).toBe(true);
+  });
+
+  it("does not flag a resource whose calendar covers the task's calendar", () => {
+    const assignments: RiskAssignmentInput[] = [
+      {
+        resourceId: "r1",
+        resourceName: "Alice",
+        taskId: "a",
+        allocationPercent: 50,
+        earlyStart: "2026-01-05",
+        earlyFinish: "2026-01-09",
+        resourceWorkingDays: [1, 2, 3, 4, 5, 6],
+        taskWorkingDays: [1, 2, 3, 4, 5],
+      },
+    ];
+    const flags = runRuleBasedRiskChecks([], assignments);
+    expect(flags.some((f) => f.category === "calendar-conflict")).toBe(false);
+  });
+
+  it("defaults to a Mon-Fri calendar for either side when unspecified", () => {
+    const assignments: RiskAssignmentInput[] = [
+      {
+        resourceId: "r1",
+        resourceName: "Alice",
+        taskId: "a",
+        allocationPercent: 50,
+        earlyStart: "2026-01-05",
+        earlyFinish: "2026-01-09",
+      },
+    ];
+    const flags = runRuleBasedRiskChecks([], assignments);
+    expect(flags.some((f) => f.category === "calendar-conflict")).toBe(false);
+  });
 });

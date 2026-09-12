@@ -1,8 +1,9 @@
 import "server-only";
-import { addDays, differenceInCalendarDays, format } from "date-fns";
+import { format } from "date-fns";
 import { calculateCPM } from "@/lib/cpm/engine";
 import { CpmCycleError, CpmDependency, CpmTask } from "@/lib/cpm/types";
 import { createClient } from "@/lib/supabase/server";
+import { loadCalendarSet } from "./calendar-lookup";
 
 export interface RecalculateResult {
   ok: boolean;
@@ -25,7 +26,7 @@ export async function recalculateProjectSchedule(
       supabase.from("projects").select("data_date").eq("id", projectId).single(),
       supabase
         .from("tasks")
-        .select("id, duration_days, constraint_start")
+        .select("id, duration_days, constraint_start, calendar_id")
         .eq("project_id", projectId),
       supabase
         .from("dependencies")
@@ -41,15 +42,14 @@ export async function recalculateProjectSchedule(
   if (!tasks || tasks.length === 0) return { ok: true, criticalTaskIds: [] };
 
   const dataDate = new Date(project.data_date + "T00:00:00");
-  const toDateString = (dayOffset: number) =>
-    format(addDays(dataDate, dayOffset), "yyyy-MM-dd");
+  const toDateString = (date: Date) => format(date, "yyyy-MM-dd");
+  const calendars = await loadCalendarSet(projectId, dataDate);
 
   const cpmTasks: CpmTask[] = tasks.map((t) => ({
     id: t.id,
     duration: Number(t.duration_days),
-    minStart: t.constraint_start
-      ? Math.max(0, differenceInCalendarDays(new Date(t.constraint_start + "T00:00:00"), dataDate))
-      : undefined,
+    minStart: t.constraint_start ? new Date(t.constraint_start + "T00:00:00") : undefined,
+    calendarId: t.calendar_id ?? undefined,
   }));
   const cpmDeps: CpmDependency[] = (deps ?? []).map((d) => ({
     predecessorId: d.predecessor_id,
@@ -60,7 +60,7 @@ export async function recalculateProjectSchedule(
 
   let result;
   try {
-    result = calculateCPM(cpmTasks, cpmDeps);
+    result = calculateCPM(cpmTasks, cpmDeps, calendars);
   } catch (err) {
     if (err instanceof CpmCycleError) {
       return { ok: false, error: err.message };

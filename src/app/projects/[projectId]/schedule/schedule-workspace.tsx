@@ -8,17 +8,25 @@ import { BaselinePicker } from "../baseline-picker";
 import { WbsSidebar } from "./wbs-sidebar";
 import { TaskTable } from "./task-table";
 
+interface CalendarOption {
+  id: string;
+  name: string;
+  is_default: boolean;
+}
+
 export function ScheduleWorkspace({
   project,
   wbsNodes,
   tasks,
   dependencies,
+  calendars,
   varianceData,
 }: {
   project: Project;
   wbsNodes: WbsNode[];
   tasks: Task[];
   dependencies: Dependency[];
+  calendars: CalendarOption[];
   varianceData: ProjectVarianceData;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -67,6 +75,7 @@ export function ScheduleWorkspace({
           allTasks={tasks}
           dependencies={dependencies}
           wbsNodes={wbsNodes}
+          calendars={calendars}
           variance={varianceData.variance}
           thresholdPercent={varianceData.thresholdPercent}
         />

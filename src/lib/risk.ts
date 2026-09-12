@@ -16,17 +16,28 @@ export interface RiskAssignmentInput {
   allocationPercent: number;
   earlyStart: string | null;
   earlyFinish: string | null;
+  /** Working weekdays (0=Sun..6=Sat) for the resource's own calendar; omit/null to assume Mon-Fri. */
+  resourceWorkingDays?: number[] | null;
+  /** Working weekdays for the task's calendar; omit/null to assume Mon-Fri. */
+  taskWorkingDays?: number[] | null;
 }
 
 export type RiskSeverity = "high" | "medium" | "low";
 
 export interface RiskFlag {
   severity: RiskSeverity;
-  category: "over-allocation" | "unrealistic-duration" | "missing-dependency" | "dangling-task";
+  category:
+    | "over-allocation"
+    | "unrealistic-duration"
+    | "missing-dependency"
+    | "dangling-task"
+    | "calendar-conflict";
   message: string;
   taskId?: string;
   resourceId?: string;
 }
+
+const MON_FRI = [1, 2, 3, 4, 5];
 
 const LONG_DURATION_DAYS = 60;
 const DANGLING_SLACK_DAYS = 3;
@@ -114,6 +125,27 @@ export function runRuleBasedRiskChecks(
         resourceId,
       });
     }
+  }
+
+  // Calendar conflicts: a resource whose calendar has fewer working days
+  // than the task it's assigned to is a potential availability conflict —
+  // the schedule may expect work on a day the resource isn't available.
+  const flaggedCalendarPairs = new Set<string>();
+  for (const a of assignments) {
+    const resourceDays = a.resourceWorkingDays ?? MON_FRI;
+    const taskDays = a.taskWorkingDays ?? MON_FRI;
+    const missingDays = taskDays.filter((d) => !resourceDays.includes(d));
+    if (missingDays.length === 0) continue;
+    const pairKey = `${a.resourceId}::${a.taskId}`;
+    if (flaggedCalendarPairs.has(pairKey)) continue;
+    flaggedCalendarPairs.add(pairKey);
+    flags.push({
+      severity: "medium",
+      category: "calendar-conflict",
+      message: `${a.resourceName}'s calendar has ${missingDays.length} fewer working day(s) per week than the task it's assigned to — check availability.`,
+      taskId: a.taskId,
+      resourceId: a.resourceId,
+    });
   }
 
   return flags;

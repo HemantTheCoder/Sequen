@@ -6,6 +6,8 @@ export type Task = Tables<"tasks">;
 export type Dependency = Tables<"dependencies">;
 export type Resource = Tables<"resources">;
 export type TaskResource = Tables<"task_resources">;
+export type Calendar = Tables<"calendars">;
+export type CalendarException = Tables<"calendar_exceptions">;
 
 export interface WbsTreeNode extends WbsNode {
   children: WbsTreeNode[];

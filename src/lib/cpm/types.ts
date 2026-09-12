@@ -1,43 +1,61 @@
+import type { WorkingCalendar } from "./calendar";
+
 export type DependencyType = "FS" | "SS" | "FF" | "SF";
 
-/** A task as seen by the CPM engine. Durations and floats are in whole days. */
+/** A task as seen by the CPM engine. Durations are in working days, on the task's own calendar. */
 export interface CpmTask {
   id: string;
   duration: number;
   /**
-   * Optional "start no earlier than" constraint, as a day offset from the
-   * project data date. Acts as an extra lower bound on early start,
-   * alongside whatever dependencies require — the same way a P6 SNET
-   * constraint interacts with logic-driven dates.
+   * Optional "start no earlier than" constraint, as an actual date. Acts as
+   * an extra lower bound on early start, alongside whatever dependencies
+   * require — the same way a P6 SNET constraint interacts with logic-driven
+   * dates. Snapped onto this task's own next working day.
    */
-  minStart?: number;
+  minStart?: Date;
+  /** Looked up in the calendar set passed to calculateCPM; falls back to its default calendar if unset or unknown. */
+  calendarId?: string;
 }
 
 export interface CpmDependency {
   predecessorId: string;
   successorId: string;
   type: DependencyType;
-  /** Lag in days. Negative values represent lead time. */
+  /**
+   * Lag in working days, measured on the predecessor's calendar before
+   * crossing over to the successor (negative values represent lead time).
+   * Treating lag as working days — not raw calendar days — keeps a uniform
+   * single-calendar project exactly additive, the same as before calendars
+   * existed.
+   */
   lagDays: number;
+}
+
+/** The calendars available to a CPM run: a fallback default, plus any named calendars tasks opt into. */
+export interface CpmCalendarSet {
+  dataDate: Date;
+  defaultCalendar: WorkingCalendar;
+  calendarsById?: Map<string, WorkingCalendar>;
 }
 
 export interface CpmTaskResult {
   id: string;
   duration: number;
-  /** Day offsets from the project data date (day 0). */
-  earlyStart: number;
-  earlyFinish: number;
-  lateStart: number;
-  lateFinish: number;
+  earlyStart: Date;
+  earlyFinish: Date;
+  lateStart: Date;
+  lateFinish: Date;
+  /** Working days on this task's own calendar. */
   totalFloat: number;
+  /** Working days on this task's own calendar. */
   freeFloat: number;
   isCritical: boolean;
 }
 
 export interface CpmResult {
   tasks: Map<string, CpmTaskResult>;
-  /** Project duration in days, i.e. the max early finish across all tasks. */
-  projectDuration: number;
+  /** The latest early finish across all tasks. */
+  projectFinish: Date;
 }
 
 export class CpmCycleError extends Error {

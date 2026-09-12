@@ -38,6 +38,7 @@ function makeTask(id: string, wbsId: string, sortOrder = 0): Task {
     is_critical: false,
     constraint_start: null,
     external_id: null,
+    calendar_id: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   };

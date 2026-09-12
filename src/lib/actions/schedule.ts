@@ -92,6 +92,7 @@ export interface TaskUpdateInput {
   is_milestone?: boolean;
   wbs_id?: string | null;
   constraint_start?: string | null;
+  calendar_id?: string | null;
 }
 
 export async function updateTask(
@@ -103,7 +104,8 @@ export async function updateTask(
   const { error } = await supabase.from("tasks").update(updates).eq("id", id);
   if (error) throw new Error(error.message);
 
-  const needsRecalc = "duration_days" in updates || "constraint_start" in updates;
+  const needsRecalc =
+    "duration_days" in updates || "constraint_start" in updates || "calendar_id" in updates;
   if (needsRecalc) await recalculateProjectSchedule(projectId);
 
   revalidatePath(schedulePath(projectId));

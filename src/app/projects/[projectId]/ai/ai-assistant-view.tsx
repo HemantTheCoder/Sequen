@@ -16,8 +16,20 @@ import { toast } from "sonner";
 interface AssignmentRow {
   id: string;
   allocation_percent: number;
-  task: { id: string; name: string; early_start: string | null; early_finish: string | null };
-  resource: { id: string; name: string } | null;
+  task: {
+    id: string;
+    name: string;
+    early_start: string | null;
+    early_finish: string | null;
+    calendar_id: string | null;
+  };
+  resource: { id: string; name: string; calendar_id: string | null } | null;
+}
+
+interface CalendarOption {
+  id: string;
+  working_days: unknown;
+  is_default: boolean;
 }
 
 export function AiAssistantView({
@@ -25,16 +37,18 @@ export function AiAssistantView({
   tasks,
   dependencies,
   assignments,
+  calendars,
 }: {
   project: Project;
   tasks: Task[];
   dependencies: Dependency[];
   assignments: AssignmentRow[];
+  calendars: CalendarOption[];
 }) {
   return (
     <div className="w-full max-w-4xl flex-1 space-y-6 p-6">
       <ScheduleGenerator project={project} />
-      <RiskChecker tasks={tasks} dependencies={dependencies} assignments={assignments} />
+      <RiskChecker tasks={tasks} dependencies={dependencies} assignments={assignments} calendars={calendars} />
     </div>
   );
 }
@@ -169,15 +183,22 @@ function RiskChecker({
   tasks,
   dependencies,
   assignments,
+  calendars,
 }: {
   tasks: Task[];
   dependencies: Dependency[];
   assignments: AssignmentRow[];
+  calendars: CalendarOption[];
 }) {
   const [flags, setFlags] = useState<RiskFlag[] | null>(null);
   const [aiFlags, setAiFlags] = useState<RiskFlag[]>([]);
   const [loading, setLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+
+  function workingDaysFor(calendarId: string | null): number[] | null {
+    const cal = calendarId ? calendars.find((c) => c.id === calendarId) : calendars.find((c) => c.is_default);
+    return cal && Array.isArray(cal.working_days) ? (cal.working_days as number[]) : null;
+  }
 
   async function handleCheck() {
     setLoading(true);
@@ -206,6 +227,8 @@ function RiskChecker({
           allocationPercent: a.allocation_percent,
           earlyStart: a.task.early_start,
           earlyFinish: a.task.early_finish,
+          resourceWorkingDays: workingDaysFor(a.resource!.calendar_id),
+          taskWorkingDays: workingDaysFor(a.task.calendar_id),
         })),
     );
     setFlags(ruleFlags);

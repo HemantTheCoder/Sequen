@@ -96,6 +96,73 @@ export type Database = {
           },
         ]
       }
+      calendar_exceptions: {
+        Row: {
+          calendar_id: string
+          date: string
+          id: string
+          is_working: boolean
+          note: string | null
+        }
+        Insert: {
+          calendar_id: string
+          date: string
+          id?: string
+          is_working: boolean
+          note?: string | null
+        }
+        Update: {
+          calendar_id?: string
+          date?: string
+          id?: string
+          is_working?: boolean
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_exceptions_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendars: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          name: string
+          project_id: string
+          working_days: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          project_id: string
+          working_days?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          project_id?: string
+          working_days?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendars_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dependencies: {
         Row: {
           created_at: string
@@ -183,6 +250,7 @@ export type Database = {
       }
       resources: {
         Row: {
+          calendar_id: string | null
           cost_per_hour: number | null
           created_at: string
           id: string
@@ -191,6 +259,7 @@ export type Database = {
           role: string | null
         }
         Insert: {
+          calendar_id?: string | null
           cost_per_hour?: number | null
           created_at?: string
           id?: string
@@ -199,6 +268,7 @@ export type Database = {
           role?: string | null
         }
         Update: {
+          calendar_id?: string | null
           cost_per_hour?: number | null
           created_at?: string
           id?: string
@@ -207,6 +277,13 @@ export type Database = {
           role?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "resources_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "resources_project_id_fkey"
             columns: ["project_id"]
@@ -257,6 +334,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          calendar_id: string | null
           constraint_start: string | null
           created_at: string
           duration_days: number
@@ -281,6 +359,7 @@ export type Database = {
           wbs_id: string | null
         }
         Insert: {
+          calendar_id?: string | null
           constraint_start?: string | null
           created_at?: string
           duration_days?: number
@@ -305,6 +384,7 @@ export type Database = {
           wbs_id?: string | null
         }
         Update: {
+          calendar_id?: string | null
           constraint_start?: string | null
           created_at?: string
           duration_days?: number
@@ -329,6 +409,13 @@ export type Database = {
           wbs_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "tasks_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tasks_project_id_fkey"
             columns: ["project_id"]

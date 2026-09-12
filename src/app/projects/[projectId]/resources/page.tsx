@@ -10,7 +10,7 @@ export default async function ResourcesPage({
   const { projectId } = await params;
   const supabase = await createClient();
 
-  const [{ data: project }, { data: resources }, { data: tasks }, { data: assignments }] =
+  const [{ data: project }, { data: resources }, { data: tasks }, { data: assignments }, { data: calendars }] =
     await Promise.all([
       supabase.from("projects").select("*").eq("id", projectId).single(),
       supabase.from("resources").select("*").eq("project_id", projectId).order("created_at"),
@@ -23,6 +23,7 @@ export default async function ResourcesPage({
         .from("task_resources")
         .select("*, task:tasks!inner(id, name, early_start, early_finish, project_id)")
         .eq("task.project_id", projectId),
+      supabase.from("calendars").select("id, name, is_default").eq("project_id", projectId).order("name"),
     ]);
 
   if (!project) notFound();
@@ -33,6 +34,7 @@ export default async function ResourcesPage({
       resources={resources ?? []}
       tasks={tasks ?? []}
       assignments={assignments ?? []}
+      calendars={calendars ?? []}
     />
   );
 }
