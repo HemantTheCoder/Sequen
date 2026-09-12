@@ -26,8 +26,8 @@ export default async function ProjectLayout({
   if (!project) notFound();
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col">
-      <header className="flex items-center justify-between border-b px-6 py-3">
+    <div className="flex h-screen flex-1 flex-col">
+      <header className="flex shrink-0 items-center justify-between border-b px-6 py-3">
         <div className="flex items-center gap-3">
           <Link href="/projects" className="text-sm text-muted-foreground hover:text-foreground">
             Sequen
@@ -37,7 +37,7 @@ export default async function ProjectLayout({
         </div>
         <ProjectNav projectId={project.id} />
       </header>
-      <main className="flex flex-1 flex-col">{children}</main>
+      <main className="flex min-h-0 flex-1 flex-col overflow-auto">{children}</main>
     </div>
   );
 }
