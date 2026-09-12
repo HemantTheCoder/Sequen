@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
+  applyCalendarExceptionRange,
   clearCalendarException,
   createCalendar,
   deleteCalendar,
@@ -268,14 +269,17 @@ export function CalendarsView({
               ))}
             </select>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             {selectedCalendar ? (
-              <ExceptionCalendar
-                projectId={projectId}
-                calendar={selectedCalendar}
-                exceptions={exceptions.filter((e) => e.calendar_id === selectedCalendar.id)}
-                onChanged={refresh}
-              />
+              <>
+                <RangeExceptionForm projectId={projectId} calendars={calendars} selectedCalendarId={selectedCalendar.id} onChanged={refresh} />
+                <ExceptionCalendar
+                  projectId={projectId}
+                  calendar={selectedCalendar}
+                  exceptions={exceptions.filter((e) => e.calendar_id === selectedCalendar.id)}
+                  onChanged={refresh}
+                />
+              </>
             ) : (
               <p className="text-sm text-muted-foreground">Select a calendar above to edit its exception dates.</p>
             )}
@@ -283,6 +287,99 @@ export function CalendarsView({
         </Card>
       )}
     </div>
+  );
+}
+
+function RangeExceptionForm({
+  projectId,
+  calendars,
+  selectedCalendarId,
+  onChanged,
+}: {
+  projectId: string;
+  calendars: CalendarRow[];
+  selectedCalendarId: string;
+  onChanged: () => void;
+}) {
+  const today = format(new Date(), "yyyy-MM-dd");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
+  const [kind, setKind] = useState<"holiday" | "working">("holiday");
+  const [note, setNote] = useState("");
+  const [applyToAll, setApplyToAll] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function handleApply(e: React.FormEvent) {
+    e.preventDefault();
+    if (!startDate || !endDate || endDate < startDate) {
+      toast.error("Pick a valid start and end date");
+      return;
+    }
+    setBusy(true);
+    try {
+      const calendarIds = applyToAll ? calendars.map((c) => c.id) : [selectedCalendarId];
+      await applyCalendarExceptionRange(projectId, calendarIds, startDate, endDate, kind === "working", note.trim() || null);
+      toast.success(
+        startDate === endDate
+          ? `${kind === "holiday" ? "Holiday" : "Working day"} set for ${startDate}${applyToAll ? " on every calendar" : ""}`
+          : `${kind === "holiday" ? "Holiday" : "Working day"} range applied${applyToAll ? " to every calendar" : ""}`,
+      );
+      setNote("");
+      onChanged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not apply exception range");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleApply} className="space-y-2 rounded-[2px] border border-border p-3">
+      <p className="text-xs font-medium text-muted-foreground">Block off a range at once — e.g. a multi-day holiday</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          className="h-8 w-36 text-xs"
+        />
+        <span className="text-xs text-muted-foreground">to</span>
+        <Input
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          className="h-8 w-36 text-xs"
+        />
+        <select
+          value={kind}
+          onChange={(e) => setKind(e.target.value as "holiday" | "working")}
+          className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+        >
+          <option value="holiday">Holiday (off)</option>
+          <option value="working">Catch-up (working)</option>
+        </select>
+        <Input
+          placeholder="Note (optional)"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className="h-8 w-40 text-xs"
+        />
+        <Button type="submit" size="sm" disabled={busy}>
+          {busy ? "Applying…" : "Apply"}
+        </Button>
+      </div>
+      {calendars.length > 1 && (
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={applyToAll}
+            onChange={(e) => setApplyToAll(e.target.checked)}
+            className="size-3.5"
+          />
+          Apply to all {calendars.length} calendars, not just the selected one
+        </label>
+      )}
+    </form>
   );
 }
 

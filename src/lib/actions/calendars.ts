@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { eachDayOfInterval, format } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { recalculateProjectSchedule } from "./recalculate";
 
@@ -85,6 +86,38 @@ export async function clearCalendarException(projectId: string, calendarId: stri
     .delete()
     .eq("calendar_id", calendarId)
     .eq("date", date);
+  if (error) throw new Error(error.message);
+  await afterCalendarChange(projectId);
+}
+
+/**
+ * Applies one override (holiday, or an extra working day) across every date
+ * in [startDate, endDate] and every calendar in calendarIds — e.g. blocking
+ * off a multi-day holiday like Dec 24-Jan 2, optionally on every calendar in
+ * the project at once rather than one calendar and one date at a time.
+ */
+export async function applyCalendarExceptionRange(
+  projectId: string,
+  calendarIds: string[],
+  startDate: string,
+  endDate: string,
+  isWorking: boolean,
+  note?: string | null,
+) {
+  if (calendarIds.length === 0) return;
+  const supabase = await createClient();
+  const start = new Date(startDate + "T00:00:00");
+  const end = new Date(endDate + "T00:00:00");
+  if (end < start) throw new Error("End date must be on or after the start date");
+
+  const dates = eachDayOfInterval({ start, end }).map((d) => format(d, "yyyy-MM-dd"));
+  const rows = calendarIds.flatMap((calendarId) =>
+    dates.map((date) => ({ calendar_id: calendarId, date, is_working: isWorking, note: note ?? null })),
+  );
+
+  const { error } = await supabase
+    .from("calendar_exceptions")
+    .upsert(rows, { onConflict: "calendar_id,date" });
   if (error) throw new Error(error.message);
   await afterCalendarChange(projectId);
 }
