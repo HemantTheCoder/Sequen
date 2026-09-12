@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loadResourceConflicts } from "@/lib/actions/leveling";
 import { ResourcesView } from "./resources-view";
 
 export default async function ResourcesPage({
@@ -10,7 +11,7 @@ export default async function ResourcesPage({
   const { projectId } = await params;
   const supabase = await createClient();
 
-  const [{ data: project }, { data: resources }, { data: tasks }, { data: assignments }, { data: calendars }] =
+  const [{ data: project }, { data: resources }, { data: tasks }, { data: assignments }, { data: calendars }, conflicts] =
     await Promise.all([
       supabase.from("projects").select("*").eq("id", projectId).single(),
       supabase.from("resources").select("*").eq("project_id", projectId).order("created_at"),
@@ -24,6 +25,7 @@ export default async function ResourcesPage({
         .select("*, task:tasks!inner(id, name, early_start, early_finish, project_id)")
         .eq("task.project_id", projectId),
       supabase.from("calendars").select("id, name, is_default").eq("project_id", projectId).order("name"),
+      loadResourceConflicts(projectId),
     ]);
 
   if (!project) notFound();
@@ -35,6 +37,7 @@ export default async function ResourcesPage({
       tasks={tasks ?? []}
       assignments={assignments ?? []}
       calendars={calendars ?? []}
+      conflicts={conflicts}
     />
   );
 }

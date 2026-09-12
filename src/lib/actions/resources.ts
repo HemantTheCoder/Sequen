@@ -28,6 +28,16 @@ export async function setResourceCalendar(projectId: string, id: string, calenda
   revalidatePath(resourcesPath(projectId));
 }
 
+export async function setResourceCapacity(projectId: string, id: string, maxCapacityPercent: number) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("resources")
+    .update({ max_capacity_percent: maxCapacityPercent })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath(resourcesPath(projectId));
+}
+
 export async function deleteResource(projectId: string, id: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("resources").delete().eq("id", id);

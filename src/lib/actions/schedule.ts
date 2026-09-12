@@ -93,6 +93,7 @@ export interface TaskUpdateInput {
   wbs_id?: string | null;
   constraint_start?: string | null;
   calendar_id?: string | null;
+  is_manually_pinned?: boolean;
 }
 
 export async function updateTask(

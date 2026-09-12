@@ -9,10 +9,10 @@ export default async function GanttPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string }>;
-  searchParams: Promise<{ baseline?: string }>;
+  searchParams: Promise<{ baseline?: string; focus?: string }>;
 }) {
   const { projectId } = await params;
-  const { baseline: requestedBaselineId } = await searchParams;
+  const { baseline: requestedBaselineId, focus } = await searchParams;
   const supabase = await createClient();
 
   const [{ data: project }, { data: wbsNodes }, { data: tasks }, { data: dependencies }, { data: defaultCalendarRow }, varianceData] =
@@ -58,6 +58,7 @@ export default async function GanttPage({
       dependencies={dependencies ?? []}
       varianceData={varianceData}
       defaultCalendar={defaultCalendar}
+      focusDate={focus ?? null}
     />
   );
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { AlertTriangle, Milestone, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, Milestone, Pin, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -327,6 +327,12 @@ function TaskRow({
     refresh();
   }
 
+  async function handleTogglePin() {
+    await updateTask(projectId, task.id, { is_manually_pinned: !task.is_manually_pinned });
+    toast.success(task.is_manually_pinned ? "Unpinned" : "Pinned — the leveler won't move this task");
+    refresh();
+  }
+
   async function commitName() {
     if (name.trim() && name !== task.name) {
       await updateTask(projectId, task.id, { name: name.trim() });
@@ -387,6 +393,14 @@ function TaskRow({
               <AlertTriangle className="size-3.5 text-critical" />
             </span>
           )}
+          <button
+            type="button"
+            onClick={handleTogglePin}
+            title={task.is_manually_pinned ? "Pinned — the leveler won't move this task" : "Pin this task's dates against the leveler"}
+            className={cn("shrink-0", !task.is_manually_pinned && "opacity-0 group-hover:opacity-100")}
+          >
+            <Pin className={cn("size-3.5", task.is_manually_pinned ? "fill-current text-foreground" : "text-muted-foreground")} />
+          </button>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}

@@ -1,3 +1,7 @@
+import { format, isSameDay } from "date-fns";
+import { detectResourceConflicts, type LevelingAssignmentInput, type LevelingResourceInput } from "./leveling/conflicts";
+import type { WorkingCalendar } from "./cpm/calendar";
+
 export interface RiskTaskInput {
   id: string;
   name: string;
@@ -20,6 +24,8 @@ export interface RiskAssignmentInput {
   resourceWorkingDays?: number[] | null;
   /** Working weekdays for the task's calendar; omit/null to assume Mon-Fri. */
   taskWorkingDays?: number[] | null;
+  /** Resource capacity as a percent of one full-time person (300 = a 3-person crew); omit/null to assume 100. */
+  resourceMaxCapacityPercent?: number | null;
 }
 
 export type RiskSeverity = "high" | "medium" | "low";
@@ -104,25 +110,44 @@ export function runRuleBasedRiskChecks(
     }
   }
 
-  // Resource over-allocation: bucket by ISO week using each assignment's task dates.
-  const byResourceWeek = new Map<string, { resourceName: string; total: number }>();
+  // Resource over-allocation: day-level conflict detection shared with the
+  // resource-leveling feature (src/lib/leveling/conflicts.ts), so there's
+  // one source of truth for "who's over capacity when" instead of a
+  // separate warning system computing it a second, coarser way.
+  const resourceById = new Map<string, LevelingResourceInput>();
+  const levelingAssignments: LevelingAssignmentInput[] = [];
   for (const a of assignments) {
     if (!a.earlyStart || !a.earlyFinish) continue;
-    for (const week of weeksBetween(a.earlyStart, a.earlyFinish)) {
-      const key = `${a.resourceId}::${week}`;
-      const entry = byResourceWeek.get(key) ?? { resourceName: a.resourceName, total: 0 };
-      entry.total += a.allocationPercent;
-      byResourceWeek.set(key, entry);
+    if (!resourceById.has(a.resourceId)) {
+      const calendar: WorkingCalendar = { id: a.resourceId, workingDays: a.resourceWorkingDays ?? MON_FRI };
+      resourceById.set(a.resourceId, {
+        id: a.resourceId,
+        name: a.resourceName,
+        maxCapacityPercent: a.resourceMaxCapacityPercent ?? 100,
+        calendar,
+      });
     }
+    levelingAssignments.push({
+      taskId: a.taskId,
+      resourceId: a.resourceId,
+      allocationPercent: a.allocationPercent,
+      startDate: new Date(a.earlyStart + "T00:00:00"),
+      endDate: new Date(a.earlyFinish + "T00:00:00"),
+    });
   }
-  for (const [key, entry] of byResourceWeek) {
-    if (entry.total > 100) {
-      const [resourceId, week] = key.split("::");
+  const resourceConflicts = detectResourceConflicts([...resourceById.values()], levelingAssignments);
+  for (const conflict of resourceConflicts) {
+    for (const range of conflict.ranges) {
+      const start = new Date(range.startDate + "T00:00:00");
+      const end = new Date(range.endDate + "T00:00:00");
+      const dateLabel = isSameDay(start, end)
+        ? format(start, "yyyy-MM-dd")
+        : `${format(start, "yyyy-MM-dd")} to ${format(end, "yyyy-MM-dd")}`;
       flags.push({
         severity: "high",
         category: "over-allocation",
-        message: `${entry.resourceName} is allocated ${entry.total}% in the week of ${week} — over capacity.`,
-        resourceId,
+        message: `${conflict.resourceName} is allocated ${range.peakAllocationPercent}% (capacity ${conflict.maxCapacityPercent}%) around ${dateLabel} — over capacity.`,
+        resourceId: conflict.resourceId,
       });
     }
   }
@@ -154,23 +179,4 @@ export function runRuleBasedRiskChecks(
 function daysBetween(a: string, b: string): number {
   const msPerDay = 24 * 60 * 60 * 1000;
   return Math.round((new Date(b + "T00:00:00").getTime() - new Date(a + "T00:00:00").getTime()) / msPerDay);
-}
-
-function toLocalDateString(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function weeksBetween(start: string, end: string): string[] {
-  const weeks: string[] = [];
-  const cur = new Date(start + "T00:00:00");
-  const endDate = new Date(end + "T00:00:00");
-  cur.setDate(cur.getDate() - cur.getDay()); // snap to week start (Sunday)
-  while (cur < endDate) {
-    weeks.push(toLocalDateString(cur));
-    cur.setDate(cur.getDate() + 7);
-  }
-  return weeks.length > 0 ? weeks : [start];
 }

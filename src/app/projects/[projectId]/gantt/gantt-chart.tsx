@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addDays, differenceInCalendarDays, format } from "date-fns";
 import { Eye, EyeOff } from "lucide-react";
@@ -31,12 +31,14 @@ export function GanttChart({
   dependencies,
   varianceData,
   defaultCalendar,
+  focusDate,
 }: {
   project: Project;
   rows: GanttRow[];
   dependencies: Dependency[];
   varianceData: ProjectVarianceData;
   defaultCalendar: { workingDays: number[]; exceptions: Map<string, boolean> };
+  focusDate: string | null;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -44,6 +46,7 @@ export function GanttChart({
   const [showBaseline, setShowBaseline] = useState(true);
   const pxPerDay = PX_PER_DAY[zoom];
   const hasBaseline = varianceData.variance !== null;
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const taskRows = rows.filter((r): r is Extract<GanttRow, { kind: "task" }> => r.kind === "task");
 
@@ -64,10 +67,13 @@ export function GanttChart({
       if (bs && bs < min) min = bs;
       if (bf && bf > max) max = bf;
     }
+    const focus = parseDate(focusDate);
+    if (focus && focus < min) min = focus;
+    if (focus && focus > max) max = focus;
     min = addDays(min, -3);
     max = addDays(max, 5);
     return { rangeStart: min, totalDays: Math.max(1, differenceInCalendarDays(max, min)) };
-  }, [project.data_date, taskRows, varianceData.variance]);
+  }, [project.data_date, taskRows, varianceData.variance, focusDate]);
 
   const rowIndex = useMemo(() => {
     const map = new Map<string, number>();
@@ -95,6 +101,18 @@ export function GanttChart({
     }
     return offsets;
   }, [rangeStart, totalDays, defaultCalendar]);
+
+  // Scroll the focused conflict date into view once, when arriving via a
+  // "View on Gantt" link — not on every re-render, since the user may then
+  // scroll away themselves.
+  useEffect(() => {
+    const focus = parseDate(focusDate);
+    const container = scrollRef.current;
+    if (!focus || !container) return;
+    const left = dayOffset(focus) * pxPerDay - container.clientWidth / 3;
+    container.scrollLeft = Math.max(0, left);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusDate]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -130,7 +148,7 @@ export function GanttChart({
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 overflow-auto">
+      <div ref={scrollRef} className="flex min-h-0 flex-1 overflow-auto">
         <div className="sticky left-0 z-20 shrink-0 border-r border-border bg-background" style={{ width: LABEL_WIDTH }}>
           <div className="border-b border-border" style={{ height: HEADER_HEIGHT }} />
           {rows.map((row) => (
@@ -197,6 +215,13 @@ export function GanttChart({
               className="absolute top-0 bottom-0 w-px bg-foreground/50"
               style={{ left: dayOffset(parseDate(project.data_date) ?? rangeStart) * pxPerDay }}
             />
+            {focusDate && parseDate(focusDate) && (
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-status-off-track"
+                style={{ left: dayOffset(parseDate(focusDate)!) * pxPerDay }}
+                title={`Conflict on ${focusDate}`}
+              />
+            )}
 
             {rows.map((row, i) => {
               if (row.kind === "wbs") return null;

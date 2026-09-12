@@ -221,6 +221,7 @@ export type Database = {
           data_date: string
           description: string | null
           id: string
+          leveling_mode: Database["public"]["Enums"]["leveling_mode"]
           name: string
           owner_id: string
           updated_at: string
@@ -231,6 +232,7 @@ export type Database = {
           data_date?: string
           description?: string | null
           id?: string
+          leveling_mode?: Database["public"]["Enums"]["leveling_mode"]
           name: string
           owner_id: string
           updated_at?: string
@@ -241,6 +243,7 @@ export type Database = {
           data_date?: string
           description?: string | null
           id?: string
+          leveling_mode?: Database["public"]["Enums"]["leveling_mode"]
           name?: string
           owner_id?: string
           updated_at?: string
@@ -254,6 +257,7 @@ export type Database = {
           cost_per_hour: number | null
           created_at: string
           id: string
+          max_capacity_percent: number
           name: string
           project_id: string
           role: string | null
@@ -263,6 +267,7 @@ export type Database = {
           cost_per_hour?: number | null
           created_at?: string
           id?: string
+          max_capacity_percent?: number
           name: string
           project_id: string
           role?: string | null
@@ -272,6 +277,7 @@ export type Database = {
           cost_per_hour?: number | null
           created_at?: string
           id?: string
+          max_capacity_percent?: number
           name?: string
           project_id?: string
           role?: string | null
@@ -345,6 +351,7 @@ export type Database = {
           free_float: number | null
           id: string
           is_critical: boolean
+          is_manually_pinned: boolean
           is_milestone: boolean
           late_finish: string | null
           late_start: string | null
@@ -370,6 +377,7 @@ export type Database = {
           free_float?: number | null
           id?: string
           is_critical?: boolean
+          is_manually_pinned?: boolean
           is_milestone?: boolean
           late_finish?: string | null
           late_start?: string | null
@@ -395,6 +403,7 @@ export type Database = {
           free_float?: number | null
           id?: string
           is_critical?: boolean
+          is_manually_pinned?: boolean
           is_milestone?: boolean
           late_finish?: string | null
           late_start?: string | null
@@ -486,6 +495,7 @@ export type Database = {
     }
     Enums: {
       dependency_type: "FS" | "SS" | "FF" | "SF"
+      leveling_mode: "within_float" | "allow_delay"
       task_status: "not_started" | "in_progress" | "complete"
     }
     CompositeTypes: {
@@ -615,6 +625,7 @@ export const Constants = {
   public: {
     Enums: {
       dependency_type: ["FS", "SS", "FF", "SF"],
+      leveling_mode: ["within_float", "allow_delay"],
       task_status: ["not_started", "in_progress", "complete"],
     },
   },
