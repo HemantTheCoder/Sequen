@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadProjectVariance } from "@/lib/actions/variance";
+import { loadProjectEvm } from "@/lib/actions/evm-lookup";
 import { ScheduleWorkspace } from "./schedule-workspace";
 
 export default async function SchedulePage({
@@ -14,7 +15,7 @@ export default async function SchedulePage({
   const { baseline: requestedBaselineId } = await searchParams;
   const supabase = await createClient();
 
-  const [{ data: project }, { data: wbsNodes }, { data: tasks }, { data: dependencies }, { data: calendars }, varianceData] =
+  const [{ data: project }, { data: wbsNodes }, { data: tasks }, { data: dependencies }, { data: calendars }, varianceData, evmData] =
     await Promise.all([
       supabase.from("projects").select("*").eq("id", projectId).single(),
       supabase.from("wbs_nodes").select("*").eq("project_id", projectId).order("sort_order"),
@@ -22,6 +23,7 @@ export default async function SchedulePage({
       supabase.from("dependencies").select("*").eq("project_id", projectId),
       supabase.from("calendars").select("id, name, is_default").eq("project_id", projectId).order("name"),
       loadProjectVariance(projectId, requestedBaselineId),
+      loadProjectEvm(projectId),
     ]);
 
   if (!project) notFound();
@@ -34,6 +36,7 @@ export default async function SchedulePage({
       dependencies={dependencies ?? []}
       calendars={calendars ?? []}
       varianceData={varianceData}
+      evmByTaskId={evmData.taskEvm}
     />
   );
 }

@@ -14,7 +14,7 @@ export default async function CalendarsPage({
     supabase.from("projects").select("id").eq("id", projectId).single(),
     supabase
       .from("calendars")
-      .select("id, name, working_days, is_default")
+      .select("id, name, working_days, is_default, hours_per_day")
       .eq("project_id", projectId)
       .order("created_at"),
   ]);

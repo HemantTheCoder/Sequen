@@ -94,6 +94,7 @@ export interface TaskUpdateInput {
   constraint_start?: string | null;
   calendar_id?: string | null;
   is_manually_pinned?: boolean;
+  actual_cost?: number | null;
 }
 
 export async function updateTask(

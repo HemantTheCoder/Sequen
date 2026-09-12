@@ -19,11 +19,16 @@ async function afterCalendarChange(projectId: string) {
   for (const path of calendarPaths(projectId)) revalidatePath(path);
 }
 
-export async function createCalendar(projectId: string, name: string, workingDays: number[]) {
+export async function createCalendar(
+  projectId: string,
+  name: string,
+  workingDays: number[],
+  hoursPerDay: number = 8,
+) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("calendars")
-    .insert({ project_id: projectId, name, working_days: workingDays })
+    .insert({ project_id: projectId, name, working_days: workingDays, hours_per_day: hoursPerDay })
     .select()
     .single();
   if (error) throw new Error(error.message);
@@ -34,7 +39,7 @@ export async function createCalendar(projectId: string, name: string, workingDay
 export async function updateCalendar(
   projectId: string,
   id: string,
-  updates: { name?: string; working_days?: number[] },
+  updates: { name?: string; working_days?: number[]; hours_per_day?: number },
 ) {
   const supabase = await createClient();
   const { error } = await supabase.from("calendars").update(updates).eq("id", id);

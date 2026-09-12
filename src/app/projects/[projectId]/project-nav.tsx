@@ -8,6 +8,7 @@ const TABS = [
   { slug: "schedule", label: "Schedule" },
   { slug: "gantt", label: "Gantt" },
   { slug: "baselines", label: "Baselines" },
+  { slug: "evm", label: "EVM" },
   { slug: "calendars", label: "Calendars" },
   { slug: "resources", label: "Resources" },
   { slug: "import", label: "Import" },

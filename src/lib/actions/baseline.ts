@@ -2,6 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { loadCalendarSet } from "./calendar-lookup";
+import { computeBudgetedCost } from "@/lib/evm/budgetedCost";
+import { DEFAULT_CALENDAR } from "@/lib/cpm/calendar";
 
 function projectPaths(projectId: string) {
   return [
@@ -25,10 +28,15 @@ export async function createBaseline(projectId: string, name: string) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const [{ data: tasks, error: tasksError }, { data: dependencies, error: depsError }] =
+  const [{ data: project }, { data: tasks, error: tasksError }, { data: dependencies, error: depsError }, { data: assignments }] =
     await Promise.all([
+      supabase.from("projects").select("data_date").eq("id", projectId).single(),
       supabase.from("tasks").select("*").eq("project_id", projectId),
       supabase.from("dependencies").select("*").eq("project_id", projectId),
+      supabase
+        .from("task_resources")
+        .select("task_id, allocation_percent, resource:resources!inner(cost_per_hour, calendar_id, project_id)")
+        .eq("resource.project_id", projectId),
     ]);
   if (tasksError) throw new Error(tasksError.message);
   if (depsError) throw new Error(depsError.message);
@@ -41,6 +49,23 @@ export async function createBaseline(projectId: string, name: string) {
     const list = depsBySuccessor.get(dep.successor_id) ?? [];
     list.push({ predecessor_id: dep.predecessor_id, type: dep.type, lag_days: dep.lag_days });
     depsBySuccessor.set(dep.successor_id, list);
+  }
+
+  const dataDate = new Date((project?.data_date ?? new Date().toISOString().slice(0, 10)) + "T00:00:00");
+  const calendarSet = await loadCalendarSet(projectId, dataDate);
+  const calendarFor = (calendarId: string | null) =>
+    (calendarId && calendarSet.calendarsById?.get(calendarId)) || calendarSet.defaultCalendar;
+
+  const assignmentsByTask = new Map<string, { allocationPercent: number; costPerHour: number; hoursPerDay: number }[]>();
+  for (const a of assignments ?? []) {
+    if (!a.resource || a.resource.cost_per_hour == null) continue;
+    const list = assignmentsByTask.get(a.task_id) ?? [];
+    list.push({
+      allocationPercent: a.allocation_percent,
+      costPerHour: Number(a.resource.cost_per_hour),
+      hoursPerDay: calendarFor(a.resource.calendar_id).hoursPerDay ?? DEFAULT_CALENDAR.hoursPerDay!,
+    });
+    assignmentsByTask.set(a.task_id, list);
   }
 
   await supabase.from("baselines").update({ is_active: false }).eq("project_id", projectId).eq("is_active", true);
@@ -61,6 +86,7 @@ export async function createBaseline(projectId: string, name: string) {
     end_date: t.end_date,
     duration_days: t.duration_days,
     predecessor_snapshot: depsBySuccessor.get(t.id) ?? [],
+    budgeted_cost: computeBudgetedCost(Number(t.duration_days), assignmentsByTask.get(t.id) ?? []),
   }));
 
   const { error: snapshotError } = await supabase.from("baseline_tasks").insert(baselineTasks);

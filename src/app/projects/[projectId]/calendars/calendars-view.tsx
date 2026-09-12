@@ -43,6 +43,7 @@ interface CalendarRow {
   name: string;
   working_days: unknown;
   is_default: boolean;
+  hours_per_day: number;
 }
 
 interface ExceptionRow {
@@ -70,6 +71,7 @@ export function CalendarsView({
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDays, setNewDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [newHoursPerDay, setNewHoursPerDay] = useState("8");
   const [creating, setCreating] = useState(false);
   const [selectedCalendarId, setSelectedCalendarId] = useState<string | null>(calendars[0]?.id ?? null);
 
@@ -82,10 +84,11 @@ export function CalendarsView({
     if (!newName.trim()) return;
     setCreating(true);
     try {
-      await createCalendar(projectId, newName.trim(), [...newDays].sort());
+      await createCalendar(projectId, newName.trim(), [...newDays].sort(), Number(newHoursPerDay) || 8);
       toast.success(`Calendar "${newName.trim()}" created`);
       setNewName("");
       setNewDays([1, 2, 3, 4, 5]);
+      setNewHoursPerDay("8");
       setCreateOpen(false);
       refresh();
     } catch (err) {
@@ -99,6 +102,12 @@ export function CalendarsView({
     const current = daysOf(row);
     const next = current.includes(day) ? current.filter((d) => d !== day) : [...current, day].sort();
     await updateCalendar(projectId, row.id, { working_days: next });
+    refresh();
+  }
+
+  async function handleUpdateHoursPerDay(row: CalendarRow, hoursPerDay: number) {
+    if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) return;
+    await updateCalendar(projectId, row.id, { hours_per_day: hoursPerDay });
     refresh();
   }
 
@@ -171,6 +180,17 @@ export function CalendarsView({
                       </button>
                     ))}
                   </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-muted-foreground">Hours per working day</label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={24}
+                      value={newHoursPerDay}
+                      onChange={(e) => setNewHoursPerDay(e.target.value)}
+                      className="h-8 w-16 font-mono"
+                    />
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button type="submit" disabled={creating || !newName.trim()}>
@@ -229,6 +249,7 @@ export function CalendarsView({
                       </button>
                     ))}
                   </div>
+                  <HoursPerDayInput row={row} onCommit={(hours) => handleUpdateHoursPerDay(row, hours)} />
                   {!row.is_default && (
                     <Button size="icon-sm" variant="ghost" title="Set as project default" onClick={() => handleSetDefault(row.id)}>
                       <Star className="size-3.5" />
@@ -286,6 +307,35 @@ export function CalendarsView({
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+function HoursPerDayInput({ row, onCommit }: { row: CalendarRow; onCommit: (hours: number) => void }) {
+  const [value, setValue] = useState(String(row.hours_per_day));
+
+  function commit() {
+    const n = Number(value);
+    if (Number.isFinite(n) && n > 0 && n !== row.hours_per_day) {
+      onCommit(n);
+    } else {
+      setValue(String(row.hours_per_day));
+    }
+  }
+
+  return (
+    <div className="flex shrink-0 items-center gap-1" title="Hours worked per working day (used for cost calculations)">
+      <Input
+        type="number"
+        min={1}
+        max={24}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+        className="h-7 w-12 px-1.5 font-mono text-xs"
+      />
+      <span className="text-xs text-muted-foreground">hrs/day</span>
     </div>
   );
 }

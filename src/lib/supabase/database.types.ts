@@ -17,6 +17,7 @@ export type Database = {
       baseline_tasks: {
         Row: {
           baseline_id: string
+          budgeted_cost: number
           created_at: string
           duration_days: number
           end_date: string | null
@@ -29,6 +30,7 @@ export type Database = {
         }
         Insert: {
           baseline_id: string
+          budgeted_cost?: number
           created_at?: string
           duration_days?: number
           end_date?: string | null
@@ -41,6 +43,7 @@ export type Database = {
         }
         Update: {
           baseline_id?: string
+          budgeted_cost?: number
           created_at?: string
           duration_days?: number
           end_date?: string | null
@@ -131,6 +134,7 @@ export type Database = {
       calendars: {
         Row: {
           created_at: string
+          hours_per_day: number
           id: string
           is_default: boolean
           name: string
@@ -139,6 +143,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          hours_per_day?: number
           id?: string
           is_default?: boolean
           name: string
@@ -147,6 +152,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          hours_per_day?: number
           id?: string
           is_default?: boolean
           name?: string
@@ -224,6 +230,7 @@ export type Database = {
           leveling_mode: Database["public"]["Enums"]["leveling_mode"]
           name: string
           owner_id: string
+          status_date: string
           updated_at: string
           variance_threshold_percent: number
         }
@@ -235,6 +242,7 @@ export type Database = {
           leveling_mode?: Database["public"]["Enums"]["leveling_mode"]
           name: string
           owner_id: string
+          status_date?: string
           updated_at?: string
           variance_threshold_percent?: number
         }
@@ -246,6 +254,7 @@ export type Database = {
           leveling_mode?: Database["public"]["Enums"]["leveling_mode"]
           name?: string
           owner_id?: string
+          status_date?: string
           updated_at?: string
           variance_threshold_percent?: number
         }
@@ -340,6 +349,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          actual_cost: number | null
           calendar_id: string | null
           constraint_start: string | null
           created_at: string
@@ -366,6 +376,7 @@ export type Database = {
           wbs_id: string | null
         }
         Insert: {
+          actual_cost?: number | null
           calendar_id?: string | null
           constraint_start?: string | null
           created_at?: string
@@ -392,6 +403,7 @@ export type Database = {
           wbs_id?: string | null
         }
         Update: {
+          actual_cost?: number | null
           calendar_id?: string | null
           constraint_start?: string | null
           created_at?: string

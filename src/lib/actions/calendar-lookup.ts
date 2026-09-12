@@ -14,7 +14,7 @@ export async function loadCalendarSet(projectId: string, dataDate: Date): Promis
   const supabase = await createClient();
   const { data: calendars } = await supabase
     .from("calendars")
-    .select("id, name, working_days, is_default")
+    .select("id, name, working_days, is_default, hours_per_day")
     .eq("project_id", projectId);
 
   if (!calendars || calendars.length === 0) {
@@ -40,6 +40,7 @@ export async function loadCalendarSet(projectId: string, dataDate: Date): Promis
       id: row.id,
       workingDays: Array.isArray(row.working_days) ? (row.working_days as number[]) : DEFAULT_CALENDAR.workingDays,
       exceptions: exceptionsByCalendar.get(row.id),
+      hoursPerDay: Number(row.hours_per_day) || 8,
     };
     calendarsById.set(row.id, workingCalendar);
     if (row.is_default) defaultCalendar = workingCalendar;

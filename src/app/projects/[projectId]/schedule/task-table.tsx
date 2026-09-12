@@ -9,11 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/format";
+import { fmtCurrency } from "@/lib/evm/format";
 import type { Dependency, Task, WbsNode } from "@/lib/types";
 import { createTask, deleteTask, deleteTasks, moveTasksToWbs, updateTask } from "@/lib/actions/schedule";
 import { varianceStatus } from "@/lib/variance/engine";
 import { formatVarianceDays, varianceColorClass } from "@/lib/variance/format";
 import type { TaskVariance, VarianceResult } from "@/lib/variance/types";
+import type { TaskEvmData } from "@/lib/actions/evm-lookup";
 import { PredecessorEditor } from "./predecessor-editor";
 
 // Fixed pixel widths for every column. table-layout:fixed proportionally
@@ -36,6 +38,9 @@ const COL = {
   baselineFinish: 90,
   startVariance: 100,
   finishVariance: 100,
+  budgetedCost: 100,
+  actualCost: 100,
+  earnedValue: 100,
   actions: 40,
 };
 
@@ -56,6 +61,7 @@ export function TaskTable({
   calendars,
   variance,
   thresholdPercent,
+  evmByTaskId,
 }: {
   projectId: string;
   scopeName: string;
@@ -67,6 +73,7 @@ export function TaskTable({
   calendars: CalendarOption[];
   variance: VarianceResult | null;
   thresholdPercent: number;
+  evmByTaskId: Map<string, TaskEvmData>;
 }) {
   const router = useRouter();
   const wbsNameById = new Map(wbsNodes.map((w) => [w.id, w.name]));
@@ -159,6 +166,9 @@ export function TaskTable({
     COL.float +
     COL.calendar +
     (variance ? COL.baselineStart + COL.baselineFinish + COL.startVariance + COL.finishVariance : 0) +
+    COL.budgetedCost +
+    COL.actualCost +
+    COL.earnedValue +
     COL.actions;
 
   return (
@@ -219,6 +229,9 @@ export function TaskTable({
                 <col style={{ width: COL.finishVariance }} />
               </>
             )}
+            <col style={{ width: COL.budgetedCost }} />
+            <col style={{ width: COL.actualCost }} />
+            <col style={{ width: COL.earnedValue }} />
             <col style={{ width: COL.actions }} />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-background">
@@ -251,6 +264,9 @@ export function TaskTable({
                   </th>
                 </>
               )}
+              <th className="px-3 py-2 font-medium">Budgeted Cost</th>
+              <th className="px-3 py-2 font-medium">Actual Cost</th>
+              <th className="px-3 py-2 font-medium">Earned Value</th>
               <th className="px-3 py-2" />
             </tr>
           </thead>
@@ -269,13 +285,14 @@ export function TaskTable({
                 calendars={calendars}
                 variance={variance?.byTaskId.get(task.id) ?? null}
                 thresholdPercent={thresholdPercent}
+                evm={evmByTaskId.get(task.id) ?? null}
                 refresh={refresh}
               />
             ))}
             {tasks.length === 0 && (
               <tr>
                 <td
-                  colSpan={10 + (showSectionColumn ? 1 : 0) + (variance ? 4 : 0)}
+                  colSpan={13 + (showSectionColumn ? 1 : 0) + (variance ? 4 : 0)}
                   className="px-3 py-10 text-center text-sm text-muted-foreground"
                 >
                   No tasks in this section yet. Add one, or use the AI Assistant to draft a schedule.
@@ -301,6 +318,7 @@ function TaskRow({
   calendars,
   variance,
   thresholdPercent,
+  evm,
   refresh,
 }: {
   task: Task;
@@ -314,11 +332,13 @@ function TaskRow({
   calendars: CalendarOption[];
   variance: TaskVariance | null;
   thresholdPercent: number;
+  evm: TaskEvmData | null;
   refresh: () => void;
 }) {
   const [name, setName] = useState(task.name);
   const [duration, setDuration] = useState(String(task.duration_days));
   const [percent, setPercent] = useState(String(task.percent_complete));
+  const [actualCost, setActualCost] = useState(String(task.actual_cost ?? 0));
   const preds = dependencies.filter((d) => d.successor_id === task.id);
 
   async function handleCalendarChange(calendarId: string) {
@@ -372,6 +392,17 @@ function TaskRow({
     if (!confirm(`Delete task "${task.name}"?`)) return;
     await deleteTask(projectId, task.id);
     refresh();
+  }
+
+  async function commitActualCost() {
+    const n = Math.max(0, Number(actualCost) || 0);
+    if (n !== Number(task.actual_cost ?? 0)) {
+      await updateTask(projectId, task.id, { actual_cost: n });
+      toast.success("Saved");
+      refresh();
+    } else {
+      setActualCost(String(task.actual_cost ?? 0));
+    }
   }
 
   return (
@@ -501,6 +532,23 @@ function TaskRow({
           </td>
         </>
       )}
+      <td className="px-3 py-1.5 font-mono text-muted-foreground" title={evm?.budgetedCost == null ? "Not in the active baseline" : undefined}>
+        {evm?.budgetedCost == null ? "—" : fmtCurrency(evm.budgetedCost)}
+      </td>
+      <td className="px-3 py-1.5">
+        <Input
+          type="number"
+          min={0}
+          value={actualCost}
+          onChange={(e) => setActualCost(e.target.value)}
+          onBlur={commitActualCost}
+          onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+          className="h-6 w-20 border-transparent bg-transparent py-0 font-mono hover:border-input focus-visible:border-ring"
+        />
+      </td>
+      <td className="px-3 py-1.5 font-mono text-muted-foreground" title={evm?.earnedValue == null ? "Not in the active baseline" : undefined}>
+        {evm?.earnedValue == null ? "—" : fmtCurrency(evm.earnedValue)}
+      </td>
       <td className="px-1 py-1.5">
         <div className="flex justify-end opacity-0 group-hover:opacity-100">
           <Button size="icon-sm" variant="ghost" className="size-6 text-status-off-track" onClick={handleDelete}>

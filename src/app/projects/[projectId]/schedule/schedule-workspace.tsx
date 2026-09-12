@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { buildWbsTree, type Dependency, type Project, type Task, type WbsNode } from "@/lib/types";
 import { fmtDate } from "@/lib/format";
 import type { ProjectVarianceData } from "@/lib/actions/variance";
+import type { TaskEvmData } from "@/lib/actions/evm-lookup";
 import { BaselinePicker } from "../baseline-picker";
 import { WbsSidebar } from "./wbs-sidebar";
 import { TaskTable } from "./task-table";
@@ -21,6 +22,7 @@ export function ScheduleWorkspace({
   dependencies,
   calendars,
   varianceData,
+  evmByTaskId,
 }: {
   project: Project;
   wbsNodes: WbsNode[];
@@ -28,6 +30,7 @@ export function ScheduleWorkspace({
   dependencies: Dependency[];
   calendars: CalendarOption[];
   varianceData: ProjectVarianceData;
+  evmByTaskId: Map<string, TaskEvmData>;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -78,6 +81,7 @@ export function ScheduleWorkspace({
           calendars={calendars}
           variance={varianceData.variance}
           thresholdPercent={varianceData.thresholdPercent}
+          evmByTaskId={evmByTaskId}
         />
       </div>
     </div>

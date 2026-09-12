@@ -10,12 +10,15 @@ export interface WorkingCalendar {
   workingDays: number[];
   /** date ("yyyy-MM-dd") -> isWorking, overriding the weekday pattern for that date. */
   exceptions?: Map<string, boolean>;
+  /** Hours worked per working day, for cost calculations (EVM). Defaults to 8 when unset. */
+  hoursPerDay?: number;
 }
 
 /** The implicit calendar used throughout the app before calendars existed. */
 export const DEFAULT_CALENDAR: WorkingCalendar = {
   id: "default",
   workingDays: [1, 2, 3, 4, 5],
+  hoursPerDay: 8,
 };
 
 function dateKey(date: Date): string {
