@@ -6,18 +6,26 @@ import { recalculateProjectSchedule } from "./recalculate";
 
 export interface ImportRow {
   name: string;
+  /** Source activity ID/code (e.g. P6/MSP Activity ID), if the sheet has one. */
+  activityId: string | null;
   durationDays: number;
   percentComplete: number;
+  /** Each entry may be either a task name or an activity ID — resolved against both. */
   predecessorNames: string[];
   wbsSectionName: string | null;
+}
+
+function normalize(s: string): string {
+  return s.trim().toLowerCase();
 }
 
 /**
  * Commits parsed & mapped spreadsheet rows into the project: groups rows
  * into WBS sections (by `wbsSectionName`, falling back to one section for
  * unmapped rows), creates tasks, then resolves `predecessorNames` against
- * both the new batch and the project's existing tasks by case-insensitive
- * name match.
+ * both the new batch and the project's existing tasks — matching by name
+ * OR by activity ID, since many schedule exports (P6, MS Project) list
+ * predecessors as IDs rather than task names.
  */
 export async function importParsedTasks(
   projectId: string,
@@ -28,12 +36,15 @@ export async function importParsedTasks(
 
   const { data: existingTasks } = await supabase
     .from("tasks")
-    .select("id, name")
+    .select("id, name, external_id")
     .eq("project_id", projectId);
 
-  const nameToId = new Map<string, string>();
+  // A single lookup keyed by both name and activity ID (when present) — a
+  // predecessor reference is resolved against whichever one it matches.
+  const keyToId = new Map<string, string>();
   for (const t of existingTasks ?? []) {
-    nameToId.set(t.name.trim().toLowerCase(), t.id);
+    keyToId.set(normalize(t.name), t.id);
+    if (t.external_id) keyToId.set(normalize(t.external_id), t.id);
   }
 
   const { data: existingWbs } = await supabase
@@ -45,11 +56,11 @@ export async function importParsedTasks(
 
   const wbsIdByName = new Map<string, string>();
   for (const w of existingWbs ?? []) {
-    wbsIdByName.set(w.name.trim().toLowerCase(), w.id);
+    wbsIdByName.set(normalize(w.name), w.id);
   }
 
   async function getOrCreateWbs(name: string): Promise<string> {
-    const key = name.trim().toLowerCase();
+    const key = normalize(name);
     const existing = wbsIdByName.get(key);
     if (existing) return existing;
     const { data, error } = await supabase
@@ -62,7 +73,7 @@ export async function importParsedTasks(
     return data.id;
   }
 
-  const pendingDependencies: { predecessorName: string; successorId: string }[] = [];
+  const pendingDependencies: { predecessorRef: string; successorId: string }[] = [];
   let sortOrder = 0;
 
   for (const row of rows) {
@@ -73,6 +84,7 @@ export async function importParsedTasks(
         project_id: projectId,
         wbs_id: wbsId,
         name: row.name,
+        external_id: row.activityId,
         duration_days: row.durationDays,
         percent_complete: row.percentComplete,
         status: row.percentComplete === 100 ? "complete" : row.percentComplete > 0 ? "in_progress" : "not_started",
@@ -82,18 +94,19 @@ export async function importParsedTasks(
       .single();
     if (error) throw new Error(error.message);
 
-    nameToId.set(row.name.trim().toLowerCase(), taskRow.id);
-    for (const predName of row.predecessorNames) {
-      pendingDependencies.push({ predecessorName: predName, successorId: taskRow.id });
+    keyToId.set(normalize(row.name), taskRow.id);
+    if (row.activityId) keyToId.set(normalize(row.activityId), taskRow.id);
+    for (const predRef of row.predecessorNames) {
+      pendingDependencies.push({ predecessorRef: predRef, successorId: taskRow.id });
     }
   }
 
   const unresolvedPredecessors: string[] = [];
   const depsToInsert = pendingDependencies
     .map((d) => {
-      const predId = nameToId.get(d.predecessorName.trim().toLowerCase());
+      const predId = keyToId.get(normalize(d.predecessorRef));
       if (!predId) {
-        unresolvedPredecessors.push(d.predecessorName);
+        unresolvedPredecessors.push(d.predecessorRef);
         return null;
       }
       return { project_id: projectId, predecessor_id: predId, successor_id: d.successorId, type: "FS" as const, lag_days: 0 };

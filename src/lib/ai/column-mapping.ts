@@ -3,6 +3,7 @@ import type { Schema } from "@google/genai";
 
 export interface ColumnMapping {
   taskNameColumn: number;
+  activityIdColumn: number;
   durationColumn: number;
   startDateColumn: number;
   endDateColumn: number;
@@ -16,6 +17,7 @@ export const columnMappingSchema: Schema = {
   type: Type.OBJECT,
   properties: {
     taskNameColumn: { type: Type.INTEGER },
+    activityIdColumn: { type: Type.INTEGER },
     durationColumn: { type: Type.INTEGER },
     startDateColumn: { type: Type.INTEGER },
     endDateColumn: { type: Type.INTEGER },
@@ -25,6 +27,7 @@ export const columnMappingSchema: Schema = {
   },
   required: [
     "taskNameColumn",
+    "activityIdColumn",
     "durationColumn",
     "startDateColumn",
     "endDateColumn",
@@ -36,6 +39,7 @@ export const columnMappingSchema: Schema = {
 
 export const MAPPING_FIELDS: { key: keyof ColumnMapping; label: string }[] = [
   { key: "taskNameColumn", label: "Task name" },
+  { key: "activityIdColumn", label: "Activity ID / code" },
   { key: "durationColumn", label: "Duration (days)" },
   { key: "startDateColumn", label: "Start date" },
   { key: "endDateColumn", label: "End date" },

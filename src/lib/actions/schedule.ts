@@ -119,6 +119,25 @@ export async function deleteTask(projectId: string, id: string) {
   revalidatePath(`/projects/${projectId}/gantt`);
 }
 
+export async function deleteTasks(projectId: string, ids: string[]) {
+  if (ids.length === 0) return;
+  const supabase = await createClient();
+  const { error } = await supabase.from("tasks").delete().in("id", ids);
+  if (error) throw new Error(error.message);
+  await recalculateProjectSchedule(projectId);
+  revalidatePath(schedulePath(projectId));
+  revalidatePath(`/projects/${projectId}/gantt`);
+}
+
+export async function moveTasksToWbs(projectId: string, ids: string[], wbsId: string | null) {
+  if (ids.length === 0) return;
+  const supabase = await createClient();
+  const { error } = await supabase.from("tasks").update({ wbs_id: wbsId }).in("id", ids);
+  if (error) throw new Error(error.message);
+  revalidatePath(schedulePath(projectId));
+  revalidatePath(`/projects/${projectId}/gantt`);
+}
+
 // ---- Dependencies ----
 
 export async function createDependency(

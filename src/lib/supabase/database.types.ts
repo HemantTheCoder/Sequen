@@ -178,6 +178,7 @@ export type Database = {
           early_finish: string | null
           early_start: string | null
           end_date: string | null
+          external_id: string | null
           free_float: number | null
           id: string
           is_critical: boolean
@@ -201,6 +202,7 @@ export type Database = {
           early_finish?: string | null
           early_start?: string | null
           end_date?: string | null
+          external_id?: string | null
           free_float?: number | null
           id?: string
           is_critical?: boolean
@@ -224,6 +226,7 @@ export type Database = {
           early_finish?: string | null
           early_start?: string | null
           end_date?: string | null
+          external_id?: string | null
           free_float?: number | null
           id?: string
           is_critical?: boolean

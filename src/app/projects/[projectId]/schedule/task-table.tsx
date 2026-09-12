@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { AlertTriangle, Milestone, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Milestone, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/format";
 import type { Dependency, Task, WbsNode } from "@/lib/types";
-import { createTask, deleteTask, updateTask } from "@/lib/actions/schedule";
+import { createTask, deleteTask, deleteTasks, moveTasksToWbs, updateTask } from "@/lib/actions/schedule";
 import { PredecessorEditor } from "./predecessor-editor";
 
 export function TaskTable({
@@ -31,11 +32,81 @@ export function TaskTable({
 }) {
   const router = useRouter();
   const wbsNameById = new Map(wbsNodes.map((w) => [w.id, w.name]));
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkMoveTarget, setBulkMoveTarget] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  // Selection is scoped to what's currently visible — drop any selected id
+  // that's no longer in the list (section switch, delete, etc.). Adjusted
+  // during render (React's recommended pattern) rather than in an effect,
+  // since it's purely derived from the tasks prop.
+  const tasksKey = tasks.map((t) => t.id).join(",");
+  const [lastTasksKey, setLastTasksKey] = useState(tasksKey);
+  if (tasksKey !== lastTasksKey) {
+    setLastTasksKey(tasksKey);
+    const visible = new Set(tasks.map((t) => t.id));
+    setSelected((prev) => new Set([...prev].filter((id) => visible.has(id))));
+  }
+
+  function refresh() {
+    router.refresh();
+  }
 
   async function handleAddTask() {
     await createTask(projectId, scopeWbsId, "New task", tasks.length);
-    router.refresh();
+    refresh();
   }
+
+  function toggleAll(checked: boolean) {
+    setSelected(checked ? new Set(tasks.map((t) => t.id)) : new Set());
+  }
+
+  function toggleOne(id: string, checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  async function handleBulkDelete() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    if (!confirm(`Delete ${ids.length} selected task${ids.length === 1 ? "" : "s"}?`)) return;
+    setBulkBusy(true);
+    try {
+      await deleteTasks(projectId, ids);
+      toast.success(`Deleted ${ids.length} task${ids.length === 1 ? "" : "s"}`);
+      setSelected(new Set());
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Bulk delete failed");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function handleBulkMove() {
+    const ids = [...selected];
+    if (ids.length === 0 || !bulkMoveTarget) return;
+    setBulkBusy(true);
+    try {
+      const targetId = bulkMoveTarget === "__unassigned__" ? null : bulkMoveTarget;
+      await moveTasksToWbs(projectId, ids, targetId);
+      toast.success(`Moved ${ids.length} task${ids.length === 1 ? "" : "s"}`);
+      setSelected(new Set());
+      setBulkMoveTarget("");
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Bulk move failed");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  const allSelected = tasks.length > 0 && selected.size === tasks.length;
+  const someSelected = selected.size > 0 && !allSelected;
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -47,10 +118,38 @@ export function TaskTable({
         </Button>
       </div>
 
+      {selected.size > 0 && (
+        <div className="flex items-center gap-2 border-b border-border bg-accent/60 px-4 py-2">
+          <span className="text-sm font-medium">{selected.size} selected</span>
+          <select
+            value={bulkMoveTarget}
+            onChange={(e) => setBulkMoveTarget(e.target.value)}
+            className="h-7 min-w-0 rounded-md border border-input bg-transparent px-1.5 text-xs"
+          >
+            <option value="">Move to section…</option>
+            <option value="__unassigned__">Unassigned</option>
+            {wbsNodes.map((w) => (
+              <option key={w.id} value={w.id}>{w.name}</option>
+            ))}
+          </select>
+          <Button size="sm" variant="outline" onClick={handleBulkMove} disabled={!bulkMoveTarget || bulkBusy}>
+            Move
+          </Button>
+          <Button size="sm" variant="ghost" className="text-status-off-track" onClick={handleBulkDelete} disabled={bulkBusy}>
+            <Trash2 className="size-3.5" />
+            Delete selected
+          </Button>
+          <Button size="icon-sm" variant="ghost" className="ml-auto" title="Clear selection" onClick={() => setSelected(new Set())}>
+            <X className="size-3.5" />
+          </Button>
+        </div>
+      )}
+
       <div className="flex-1 overflow-auto">
-        <table className="w-full min-w-[900px] table-fixed border-collapse text-sm">
+        <table className="w-full min-w-[940px] table-fixed border-collapse text-sm">
           <colgroup>
-            <col className={scopeWbsId === null ? "w-[26%]" : "w-[34%]"} />
+            <col className="w-8" />
+            <col className={scopeWbsId === null ? "w-[25%]" : "w-[33%]"} />
             {scopeWbsId === null && <col className="w-[14%]" />}
             <col className="w-20" />
             <col className="w-24" />
@@ -62,6 +161,13 @@ export function TaskTable({
           </colgroup>
           <thead className="sticky top-0 z-10 bg-background">
             <tr className="border-b border-border text-left text-xs text-muted-foreground">
+              <th className="px-3 py-2">
+                <Checkbox
+                  checked={someSelected ? "indeterminate" : allSelected}
+                  onCheckedChange={(v) => toggleAll(v === true)}
+                  aria-label="Select all tasks"
+                />
+              </th>
               <th className="px-3 py-2 font-medium">Name</th>
               {scopeWbsId === null && <th className="px-3 py-2 font-medium">Section</th>}
               <th className="px-3 py-2 font-medium">Duration</th>
@@ -83,12 +189,14 @@ export function TaskTable({
                 dependencies={dependencies}
                 sectionName={task.wbs_id ? wbsNameById.get(task.wbs_id) ?? "—" : "—"}
                 showSection={scopeWbsId === null}
-                refresh={() => router.refresh()}
+                selected={selected.has(task.id)}
+                onToggleSelected={(checked) => toggleOne(task.id, checked)}
+                refresh={refresh}
               />
             ))}
             {tasks.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-3 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={10} className="px-3 py-10 text-center text-sm text-muted-foreground">
                   No tasks in this section yet. Add one, or use the AI Assistant to draft a schedule.
                 </td>
               </tr>
@@ -107,6 +215,8 @@ function TaskRow({
   dependencies,
   sectionName,
   showSection,
+  selected,
+  onToggleSelected,
   refresh,
 }: {
   task: Task;
@@ -115,6 +225,8 @@ function TaskRow({
   dependencies: Dependency[];
   sectionName: string;
   showSection: boolean;
+  selected: boolean;
+  onToggleSelected: (checked: boolean) => void;
   refresh: () => void;
 }) {
   const [name, setName] = useState(task.name);
@@ -167,9 +279,13 @@ function TaskRow({
     <tr
       className={cn(
         "group border-b border-border hover:bg-accent/40",
+        selected && "bg-accent/50",
         task.is_critical && "border-l-[3px] border-l-critical",
       )}
     >
+      <td className="px-3 py-1.5">
+        <Checkbox checked={selected} onCheckedChange={(v) => onToggleSelected(v === true)} aria-label={`Select ${task.name}`} />
+      </td>
       <td className="px-3 py-1.5">
         <div className="flex min-w-0 items-center gap-1.5">
           {task.is_milestone && <Milestone className="size-3.5 shrink-0 text-status-at-risk" />}

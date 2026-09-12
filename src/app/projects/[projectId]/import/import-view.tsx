@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { differenceInCalendarDays } from "date-fns";
@@ -14,6 +14,7 @@ import { toast } from "sonner";
 
 interface ParsedRow {
   name: string;
+  activityId: string | null;
   durationDays: number | null;
   isEstimated: boolean;
   percentComplete: number;
@@ -23,6 +24,7 @@ interface ParsedRow {
 
 const EMPTY_MAPPING: ColumnMapping = {
   taskNameColumn: -1,
+  activityIdColumn: -1,
   durationColumn: -1,
   startDateColumn: -1,
   endDateColumn: -1,
@@ -121,9 +123,11 @@ export function ImportView({ projectId }: { projectId: string }) {
           : [];
 
         const wbsSectionName = col(row, mapping.wbsSectionColumn) || null;
+        const activityId = col(row, mapping.activityIdColumn) || null;
 
         const parsedRow: ParsedRow = {
           name,
+          activityId,
           durationDays: duration,
           isEstimated: false,
           percentComplete,
@@ -178,6 +182,7 @@ export function ImportView({ projectId }: { projectId: string }) {
     try {
       const payload: ImportRow[] = rows.map((r) => ({
         name: r.name,
+        activityId: r.activityId,
         durationDays: r.durationDays!,
         percentComplete: r.percentComplete,
         predecessorNames: r.predecessorNames,
@@ -198,6 +203,27 @@ export function ImportView({ projectId }: { projectId: string }) {
       setImporting(false);
     }
   }
+
+  // Cross-reference predecessor tokens against this batch's own names/IDs so
+  // the preview can flag references that won't resolve, before committing.
+  const resolvableKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const r of rows ?? []) {
+      keys.add(r.name.trim().toLowerCase());
+      if (r.activityId) keys.add(r.activityId.trim().toLowerCase());
+    }
+    return keys;
+  }, [rows]);
+  const unresolvedCount = useMemo(() => {
+    if (!rows) return 0;
+    let count = 0;
+    for (const r of rows) {
+      for (const p of r.predecessorNames) {
+        if (!resolvableKeys.has(p.trim().toLowerCase())) count++;
+      }
+    }
+    return count;
+  }, [rows, resolvableKeys]);
 
   return (
     <div className="w-full max-w-4xl flex-1 space-y-6 p-6">
@@ -266,11 +292,19 @@ export function ImportView({ projectId }: { projectId: string }) {
             <CardDescription>Review before committing — AI-estimated durations are flagged.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {unresolvedCount > 0 && (
+              <p className="border border-status-off-track bg-status-off-track/10 px-2.5 py-1.5 text-sm text-status-off-track">
+                {unresolvedCount} predecessor reference{unresolvedCount === 1 ? "" : "s"} below won&apos;t resolve —
+                highlighted in the table. Check the Activity ID mapping if your file references
+                predecessors by ID rather than name.
+              </p>
+            )}
             <div className="max-h-96 overflow-auto border border-border">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-background">
                   <tr className="border-b border-border text-left text-xs text-muted-foreground">
                     <th className="px-2 py-1.5">Name</th>
+                    {mapping.activityIdColumn >= 0 && <th className="px-2 py-1.5">ID</th>}
                     <th className="px-2 py-1.5">Duration</th>
                     <th className="px-2 py-1.5">% done</th>
                     <th className="px-2 py-1.5">Predecessors</th>
@@ -281,6 +315,9 @@ export function ImportView({ projectId }: { projectId: string }) {
                   {rows.map((r, i) => (
                     <tr key={i} className="border-b border-border">
                       <td className="px-2 py-1">{r.name}</td>
+                      {mapping.activityIdColumn >= 0 && (
+                        <td className="px-2 py-1 font-mono text-muted-foreground">{r.activityId || "—"}</td>
+                      )}
                       <td className="px-2 py-1 font-mono">
                         {r.durationDays}d
                         {r.isEstimated && (
@@ -290,7 +327,24 @@ export function ImportView({ projectId }: { projectId: string }) {
                         )}
                       </td>
                       <td className="px-2 py-1 font-mono">{r.percentComplete}%</td>
-                      <td className="px-2 py-1 text-muted-foreground">{r.predecessorNames.join(", ") || "—"}</td>
+                      <td className="px-2 py-1 text-muted-foreground">
+                        {r.predecessorNames.length === 0
+                          ? "—"
+                          : r.predecessorNames.map((p, pi) => {
+                              const resolved = resolvableKeys.has(p.trim().toLowerCase());
+                              return (
+                                <span key={pi}>
+                                  {pi > 0 && ", "}
+                                  <span
+                                    className={resolved ? undefined : "text-status-off-track"}
+                                    title={resolved ? undefined : "No matching task name or Activity ID in this import"}
+                                  >
+                                    {p}
+                                  </span>
+                                </span>
+                              );
+                            })}
+                      </td>
                       <td className="px-2 py-1 text-muted-foreground">{r.wbsSectionName || "—"}</td>
                     </tr>
                   ))}
