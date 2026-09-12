@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { addDays, differenceInCalendarDays, format, startOfWeek } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Plus, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Project, Resource } from "@/lib/types";
@@ -106,41 +106,63 @@ export function ResourcesView({
                 <Plus className="size-4" />
               </Button>
             </form>
-            <div className="space-y-1">
-              {resources.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  No resources yet. Add a name above to start assigning it to tasks.
-                </p>
-              )}
-              {resources.map((r) => (
-                <div key={r.id} className="flex items-center justify-between border border-border px-2 py-1.5 text-sm">
-                  <div>
-                    <span className="font-medium">{r.name}</span>
-                    {r.role && <span className="ml-2 text-muted-foreground">{r.role}</span>}
-                    {r.cost_per_hour != null && (
-                      <span className="ml-2 font-mono text-muted-foreground">${r.cost_per_hour}/hr</span>
-                    )}
-                  </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="size-6 text-status-off-track"
-                    onClick={async () => {
-                      await deleteResource(project.id, r.id);
-                      refresh();
-                    }}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-              ))}
-            </div>
+            {resources.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No resources yet. Add a name above to start assigning it to tasks.
+              </p>
+            ) : (
+              <table className="w-full table-fixed border-collapse text-sm">
+                <colgroup>
+                  <col className="w-[38%]" />
+                  <col className="w-[32%]" />
+                  <col className="w-[22%]" />
+                  <col className="w-8" />
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                    <th className="py-1.5 pr-2 font-medium">Name</th>
+                    <th className="py-1.5 pr-2 font-medium">Role</th>
+                    <th className="py-1.5 pr-2 font-medium">Rate</th>
+                    <th className="py-1.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {resources.map((r) => (
+                    <tr key={r.id} className="border-b border-border">
+                      <td className="truncate py-1.5 pr-2 font-medium" title={r.name}>{r.name}</td>
+                      <td className="truncate py-1.5 pr-2 text-muted-foreground" title={r.role ?? undefined}>
+                        {r.role || "—"}
+                      </td>
+                      <td className="py-1.5 pr-2 font-mono text-muted-foreground">
+                        {r.cost_per_hour != null ? `$${r.cost_per_hour}/hr` : "—"}
+                      </td>
+                      <td className="py-1.5">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-6 text-status-off-track"
+                          onClick={async () => {
+                            await deleteResource(project.id, r.id);
+                            refresh();
+                          }}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Assignments</CardTitle>
+            <CardDescription>
+              Set how much of each resource&apos;s time a task needs — utilization below is calculated from this.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <form onSubmit={handleAddAssignment} className="grid grid-cols-[1fr_1fr_60px_32px] gap-2">
@@ -174,37 +196,57 @@ export function ResourcesView({
                 <Plus className="size-4" />
               </Button>
             </form>
-            <div className="space-y-1">
-              {assignments.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  No assignments yet. Assign a resource to a task above.
-                </p>
-              )}
-              {assignments.map((a) => {
-                const resource = resources.find((r) => r.id === a.resource_id);
-                return (
-                  <div key={a.id} className="flex items-center justify-between border border-border px-2 py-1.5 text-sm">
-                    <div className="truncate">
-                      <span className="font-medium">{resource?.name ?? "?"}</span>
-                      <span className="mx-1 text-muted-foreground">on</span>
-                      <span>{a.task.name}</span>
-                      <span className="ml-2 font-mono text-muted-foreground">{a.allocation_percent}%</span>
-                    </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-6 shrink-0 text-status-off-track"
-                      onClick={async () => {
-                        await deleteAssignment(project.id, a.id);
-                        refresh();
-                      }}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
+            {assignments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No assignments yet. Assign a resource to a task above.
+              </p>
+            ) : (
+              <table className="w-full table-fixed border-collapse text-sm">
+                <colgroup>
+                  <col className="w-[28%]" />
+                  <col className="w-[52%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-8" />
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                    <th className="py-1.5 pr-2 font-medium">Resource</th>
+                    <th className="py-1.5 pr-2 font-medium">Task</th>
+                    <th className="py-1.5 pr-2 font-medium">Allocation</th>
+                    <th className="py-1.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {assignments.map((a) => {
+                    const resource = resources.find((r) => r.id === a.resource_id);
+                    return (
+                      <tr key={a.id} className="border-b border-border">
+                        <td className="truncate py-1.5 pr-2 font-medium" title={resource?.name}>
+                          {resource?.name ?? "?"}
+                        </td>
+                        <td className="truncate py-1.5 pr-2 text-muted-foreground" title={a.task.name}>
+                          {a.task.name}
+                        </td>
+                        <td className="py-1.5 pr-2 font-mono text-muted-foreground">{a.allocation_percent}%</td>
+                        <td className="py-1.5">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-6 text-status-off-track"
+                            onClick={async () => {
+                              await deleteAssignment(project.id, a.id);
+                              refresh();
+                            }}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -250,7 +292,11 @@ function UtilizationChart({
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Utilization</CardTitle>
+          <CardTitle className="text-base">Weekly utilization</CardTitle>
+          <CardDescription>
+            Calculated automatically from the assignments above and each task&apos;s scheduled dates —
+            nothing to enter here.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
@@ -265,6 +311,9 @@ function UtilizationChart({
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Weekly utilization</CardTitle>
+        <CardDescription>
+          Calculated automatically from the assignments above and each task&apos;s scheduled dates.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
