@@ -125,7 +125,7 @@ export function PredecessorEditor({
             type="number"
             value={lag}
             onChange={(e) => setLag(e.target.value)}
-            className="h-7 w-14 px-1.5 text-xs"
+            className="h-7 w-14 px-1.5 font-mono text-xs"
           />
           <Button size="icon" className="size-7 shrink-0" onClick={handleAdd} disabled={!pendingId}>
             <Plus className="size-3.5" />

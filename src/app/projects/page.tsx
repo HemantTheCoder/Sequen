@@ -19,10 +19,10 @@ export default async function ProjectsPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <div className="mx-auto w-full max-w-5xl flex-1 p-6 sm:p-10">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="w-full max-w-5xl flex-1 p-6 sm:p-10">
+      <div className="mb-8 flex items-center justify-between border-b border-border pb-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
+          <h1 className="text-xl font-semibold">Projects</h1>
           <p className="text-sm text-muted-foreground">{user.email}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -32,7 +32,7 @@ export default async function ProjectsPage() {
       </div>
 
       {!projects || projects.length === 0 ? (
-        <Card className="border-dashed">
+        <Card>
           <CardHeader>
             <CardTitle>No projects yet</CardTitle>
             <CardDescription>
@@ -44,7 +44,7 @@ export default async function ProjectsPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
             <Link key={project.id} href={`/projects/${project.id}/schedule`}>
-              <Card className="h-full transition-colors hover:border-foreground/30">
+              <Card className="h-full transition-colors hover:border-foreground/40">
                 <CardHeader>
                   <CardTitle className="text-base">{project.name}</CardTitle>
                   {project.description && (
@@ -54,7 +54,7 @@ export default async function ProjectsPage() {
                   )}
                 </CardHeader>
                 <CardContent>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="font-mono text-xs text-muted-foreground">
                     Created {fmtDate(project.created_at.slice(0, 10))}
                   </p>
                 </CardContent>

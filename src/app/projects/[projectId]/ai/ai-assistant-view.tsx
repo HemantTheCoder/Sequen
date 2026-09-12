@@ -32,7 +32,7 @@ export function AiAssistantView({
   assignments: AssignmentRow[];
 }) {
   return (
-    <div className="mx-auto w-full max-w-4xl flex-1 space-y-6 p-6">
+    <div className="w-full max-w-4xl flex-1 space-y-6 p-6">
       <ScheduleGenerator project={project} />
       <RiskChecker tasks={tasks} dependencies={dependencies} assignments={assignments} />
     </div>
@@ -139,15 +139,17 @@ function ScheduleGenerator({ project }: { project: Project }) {
                   <ul className="mt-1 space-y-0.5 pl-4 text-sm text-muted-foreground">
                     {section.tasks.map((t) => (
                       <li key={t.key} className="flex items-center gap-1.5">
-                        {t.isMilestone && <Milestone className="size-3 text-amber-600" />}
+                        {t.isMilestone && <Milestone className="size-3 text-status-at-risk" />}
                         <span>{t.name}</span>
-                        <span className="text-xs">({t.durationDays}d)</span>
+                        <span className="font-mono text-xs">{t.durationDays}d</span>
                         {t.isEstimated && (
-                          <Badge variant="secondary" className="h-4 px-1 text-[10px]">AI estimate</Badge>
+                          <Badge className="h-4 border-status-at-risk bg-status-at-risk/15 px-1 font-sans text-[10px] text-status-at-risk">
+                            AI estimate
+                          </Badge>
                         )}
                         {t.dependencies.length > 0 && (
                           <span className="text-xs">
-                            · after {t.dependencies.map((d) => d.dependsOnKey).join(", ")}
+                            after {t.dependencies.map((d) => d.dependsOnKey).join(", ")}
                           </span>
                         )}
                       </li>
@@ -273,18 +275,22 @@ function RiskChecker({
               <div
                 key={i}
                 className={cn(
-                  "flex items-start gap-2 rounded border px-2.5 py-1.5 text-sm",
-                  f.severity === "high" && "border-red-300 bg-red-50 dark:bg-red-950/20",
-                  f.severity === "medium" && "border-amber-300 bg-amber-50 dark:bg-amber-950/20",
+                  "flex items-start gap-2 border px-2.5 py-1.5 text-sm",
+                  f.severity === "high" && "border-status-off-track bg-status-off-track/10",
+                  f.severity === "medium" && "border-status-at-risk bg-status-at-risk/10",
                   f.severity === "low" && "border-border bg-muted/30",
                 )}
               >
-                <Badge
-                  variant={f.severity === "high" ? "destructive" : "secondary"}
-                  className="mt-0.5 shrink-0 text-[10px] capitalize"
+                <span
+                  className={cn(
+                    "mt-0.5 shrink-0 border px-1 text-[10px] capitalize",
+                    f.severity === "high" && "border-status-off-track text-status-off-track",
+                    f.severity === "medium" && "border-status-at-risk text-status-at-risk",
+                    f.severity === "low" && "border-muted-foreground text-muted-foreground",
+                  )}
                 >
                   {f.severity}
-                </Badge>
+                </span>
                 <span>{f.message}</span>
               </div>
             ))}

@@ -200,7 +200,7 @@ export function ImportView({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl flex-1 space-y-6 p-6">
+    <div className="w-full max-w-4xl flex-1 space-y-6 p-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -266,28 +266,30 @@ export function ImportView({ projectId }: { projectId: string }) {
             <CardDescription>Review before committing — AI-estimated durations are flagged.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="max-h-96 overflow-auto rounded border">
+            <div className="max-h-96 overflow-auto border border-border">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-background">
-                  <tr className="border-b text-left text-xs text-muted-foreground">
+                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
                     <th className="px-2 py-1.5">Name</th>
                     <th className="px-2 py-1.5">Duration</th>
-                    <th className="px-2 py-1.5">% Done</th>
+                    <th className="px-2 py-1.5">% done</th>
                     <th className="px-2 py-1.5">Predecessors</th>
                     <th className="px-2 py-1.5">Section</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r, i) => (
-                    <tr key={i} className="border-b">
+                    <tr key={i} className="border-b border-border">
                       <td className="px-2 py-1">{r.name}</td>
-                      <td className="px-2 py-1">
+                      <td className="px-2 py-1 font-mono">
                         {r.durationDays}d
                         {r.isEstimated && (
-                          <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">AI estimate</Badge>
+                          <Badge className="ml-1.5 h-4 border-status-at-risk bg-status-at-risk/15 px-1 font-sans text-[10px] text-status-at-risk">
+                            AI estimate
+                          </Badge>
                         )}
                       </td>
-                      <td className="px-2 py-1">{r.percentComplete}%</td>
+                      <td className="px-2 py-1 font-mono">{r.percentComplete}%</td>
                       <td className="px-2 py-1 text-muted-foreground">{r.predecessorNames.join(", ") || "—"}</td>
                       <td className="px-2 py-1 text-muted-foreground">{r.wbsSectionName || "—"}</td>
                     </tr>

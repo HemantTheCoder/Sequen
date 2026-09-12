@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Outline } from "./outline";
+import { ScheduleWorkspace } from "./schedule-workspace";
 
 export default async function SchedulePage({
   params,
@@ -21,7 +21,7 @@ export default async function SchedulePage({
   if (!project) notFound();
 
   return (
-    <Outline
+    <ScheduleWorkspace
       project={project}
       wbsNodes={wbsNodes ?? []}
       tasks={tasks ?? []}

@@ -78,7 +78,7 @@ export function ResourcesView({
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl flex-1 space-y-6 p-6">
+    <div className="w-full max-w-5xl flex-1 space-y-6 p-6">
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -108,21 +108,23 @@ export function ResourcesView({
             </form>
             <div className="space-y-1">
               {resources.length === 0 && (
-                <p className="text-sm text-muted-foreground">No resources yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  No resources yet. Add a name above to start assigning it to tasks.
+                </p>
               )}
               {resources.map((r) => (
-                <div key={r.id} className="flex items-center justify-between rounded border px-2 py-1.5 text-sm">
+                <div key={r.id} className="flex items-center justify-between border border-border px-2 py-1.5 text-sm">
                   <div>
                     <span className="font-medium">{r.name}</span>
                     {r.role && <span className="ml-2 text-muted-foreground">{r.role}</span>}
                     {r.cost_per_hour != null && (
-                      <span className="ml-2 text-muted-foreground">${r.cost_per_hour}/hr</span>
+                      <span className="ml-2 font-mono text-muted-foreground">${r.cost_per_hour}/hr</span>
                     )}
                   </div>
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="size-6 text-destructive"
+                    className="size-6 text-status-off-track"
                     onClick={async () => {
                       await deleteResource(project.id, r.id);
                       refresh();
@@ -166,6 +168,7 @@ export function ResourcesView({
                 type="number"
                 value={newAssignment.allocation}
                 onChange={(e) => setNewAssignment((s) => ({ ...s, allocation: e.target.value }))}
+                className="font-mono"
               />
               <Button size="icon" type="submit">
                 <Plus className="size-4" />
@@ -173,22 +176,24 @@ export function ResourcesView({
             </form>
             <div className="space-y-1">
               {assignments.length === 0 && (
-                <p className="text-sm text-muted-foreground">No assignments yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  No assignments yet. Assign a resource to a task above.
+                </p>
               )}
               {assignments.map((a) => {
                 const resource = resources.find((r) => r.id === a.resource_id);
                 return (
-                  <div key={a.id} className="flex items-center justify-between rounded border px-2 py-1.5 text-sm">
+                  <div key={a.id} className="flex items-center justify-between border border-border px-2 py-1.5 text-sm">
                     <div className="truncate">
                       <span className="font-medium">{resource?.name ?? "?"}</span>
                       <span className="mx-1 text-muted-foreground">on</span>
                       <span>{a.task.name}</span>
-                      <span className="ml-2 text-muted-foreground">{a.allocation_percent}%</span>
+                      <span className="ml-2 font-mono text-muted-foreground">{a.allocation_percent}%</span>
                     </div>
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="size-6 shrink-0 text-destructive"
+                      className="size-6 shrink-0 text-status-off-track"
                       onClick={async () => {
                         await deleteAssignment(project.id, a.id);
                         refresh();
@@ -268,7 +273,7 @@ function UtilizationChart({
               <tr>
                 <th className="w-32 px-2 py-1 text-left font-medium">Resource</th>
                 {weeks.map((w) => (
-                  <th key={w.toISOString()} className="w-16 px-1 py-1 text-center text-xs font-normal text-muted-foreground">
+                  <th key={w.toISOString()} className="w-16 px-1 py-1 text-center font-mono text-xs font-normal text-muted-foreground">
                     {format(w, "MMM d")}
                   </th>
                 ))}
@@ -287,14 +292,14 @@ function UtilizationChart({
                           <div
                             title={`${pct}%`}
                             className={cn(
-                              "w-6 rounded-t",
-                              pct === 0 ? "bg-transparent" : over ? "bg-red-500" : "bg-blue-400",
+                              "w-6",
+                              pct === 0 ? "bg-transparent" : over ? "bg-status-off-track" : "bg-status-on-track",
                             )}
                             style={{ height: `${Math.min(100, pct) / 100 * 36 + (pct > 0 ? 4 : 0)}px` }}
                           />
                         </div>
                         {over && (
-                          <div className="flex items-center justify-center gap-0.5 text-[10px] text-red-600">
+                          <div className="flex items-center justify-center gap-0.5 font-mono text-[10px] text-status-off-track">
                             <AlertTriangle className="size-2.5" />
                             {pct}%
                           </div>
